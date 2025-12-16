@@ -8,14 +8,12 @@ Set in a historically inspired Norse world, players gather, fight, duel, and exp
 - Early prototype / sandbox
 - Procedural, physics-driven melee combat
 - Multiplayer-focused experimentation
-- No fixed progression or win conditions (yet)
 
 ## Vision
 Hólm aims to blend:
 - Weighty, skill-based melee combat
-- Social multiplayer spaces (longhouse-style hubs)
-- Small-scale squad encounters
-- Historically grounded Viking themes (no high fantasy)
+- Small to mid-scale squad encounters
+- Historically grounded Viking themes
 
 ## Roadmap
 - Core combat polish

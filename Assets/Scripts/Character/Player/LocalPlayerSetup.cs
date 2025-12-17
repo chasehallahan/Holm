@@ -3,7 +3,6 @@ using UnityEngine;
 public class LocalPlayerSetup : MonoBehaviour
 {
     [Header("Assign in Inspector")]
-
     [Tooltip("Local-only cameras (CameraPivot, Camera, Cinemachine); disabled for remote players.")]
     [SerializeField] private GameObject[] playerCameras;
 
@@ -20,20 +19,30 @@ public class LocalPlayerSetup : MonoBehaviour
     [Tooltip("TEMP local ownership flag; will replace with networking IsOwner/isLocalPlayer later.")]
     [SerializeField] private bool isLocalPlayer = true;
 
+    void Awake()
+    {
+        if (!RequireRef.Check(worldMesh, this, nameof(worldMesh))) return;
+        if (!RequireRef.Check(localMesh, this, nameof(localMesh))) return;
+    }
+
+#if UNITY_EDITOR
+    private void OnValidate()
+    {
+        RequireRef.Warn(worldMesh, this, nameof(worldMesh));
+        RequireRef.Warn(localMesh, this, nameof(localMesh));
+    }
+#endif
+
     void Start()
     {
-        if (playerCameras is null || worldMesh is null || localMesh is null || localOnlyScripts is null)
-        {
-            Debug.LogError("LocalPlayerSetup: One or more of your references is null. Remember to set them in the inspector for the Local Player Setup component.");
-        }
         ApplyLocalState(isLocalPlayer);
     }
 
     public void ApplyLocalState(bool local)
     {
         // Visuals
-        if (worldMesh) worldMesh.enabled = local;  // TEMP: world mesh enabled for debug
-        if (localMesh) localMesh.enabled = !local; // TEMP: local mesh (headless) disabled for debug
+        if (worldMesh) worldMesh.enabled = !local;
+        if (localMesh) localMesh.enabled = local;
 
         // Cameras
         if (playerCameras is not null)

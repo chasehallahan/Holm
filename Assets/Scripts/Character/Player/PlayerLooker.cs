@@ -8,7 +8,7 @@ public class PlayerLooker : MonoBehaviour
     [Tooltip("Custom PlayerInputReader script. Reads Move/Look/etc from the Input System wrapper on this GameObject.")]
     [SerializeField] private PlayerInputReader input;
 
-    [Tooltip("Transform that the Camera is parented under. We rotate/move this pivot (not the Camera directly).")]
+    [Tooltip("Transform that the Camera is parented under. We rotate this pivot (not the Camera directly).")]
     [SerializeField] private Transform cameraPivot;
 
     [Tooltip("Final IK LookAtIK component controlling head/spine look direction.")]
@@ -22,7 +22,7 @@ public class PlayerLooker : MonoBehaviour
 
     [Header("Look Sensitivity")]
     [Tooltip("Mouse/controller look sensitivity multiplier.")]
-    [SerializeField] private float lookSensitivity = 20f;
+    [SerializeField] private float lookSensitivity = 0.2f;
 
     [Tooltip("Maximum angle (degrees) you can look downward from neutral pitch.")]
     [Range(0f, 89f)]
@@ -30,99 +30,95 @@ public class PlayerLooker : MonoBehaviour
 
     [Tooltip("Maximum angle (degrees) you can look upward from neutral pitch.")]
     [Range(0f, 89f)]
-    [SerializeField] private float maxLookUp = 60f;
+    [SerializeField] private float maxLookUp = 70f;
 
     [Header("Body Rotation")]
     [Tooltip("Max allowed yaw (degrees) between body forward and view direction before the body starts turning to catch up.")]
-    [Range(0f, 120f)]
-    [SerializeField] private float maxUpperBodyTwist = 40f;
+    [Range(0f, 120f)] [SerializeField] private float maxUpperBodyTwist = 30f;
 
-    [Tooltip("How fast (degrees/second) the body turns to reduce view-body yaw offset once beyond the twist limit.")]
-    [SerializeField] private float bodyTurnSpeed = 80;
+    [Tooltip("How resposively the body turns to reduce view-body yaw offset once beyond the twist limit.")]
+    [SerializeField] private float bodyTurnCorrection = 80f;
 
     [Tooltip("Extra degrees beyond MaxUpperBodyTwist before body catch-up begins. Helps avoid micro-corrections/jitter.")]
-    [SerializeField] private float bodyTurnDeadzone = 5f;
+    [SerializeField] private float bodyTurnDeadzone = 0f;
 
     [Header("Look Target")]
     [Tooltip("Distance (meters) in front of the camera where the LookTarget is placed. Larger reduces cross-eye / extreme bending.")]
-    [Min(0.1f)]
-    [SerializeField] private float targetDistance = 15f;
+    [Min(0.1f)] [SerializeField] private float targetDistance = 15f;
 
     [Tooltip("Smoothing speed for the LookTarget position. Higher = snappier (less lag). Exponential smoothing.")]
-    [Range(0f, 200f)]
-    [SerializeField] private float targetPositionLerp = 30;
-
-    [Tooltip("Smoothing speed for CameraPivot position following the Eyes transform. Higher = tighter, lower = floatier.")]
-    [Range(0f, 200f)]
-    [SerializeField] private float cameraPositionLerp = 120f;
+    [Range(0f, 200f)] [SerializeField] private float targetPositionLerp = 30f;
 
     private Transform _lookTarget;
     private float _pitch;      // Camera pitch (up/down)
-    private float _viewYaw;    // Camera yaw (left/right)
-    private float _bodyYaw;    // Body/root yaw
+    private Quaternion _yaw;    // Camera yaw (left/right)
 
     // Public accessors
-    public Transform LookTarget => _lookTarget;
-    public float Pitch => _pitch;
-    public float ViewYaw => _viewYaw;
-    public float BodyYaw => _bodyYaw;
-    public Vector2 LookInput => input is not null ? input.Look : Vector2.zero;
+    //public Transform LookTarget => _lookTarget;
+    //public float Pitch => _pitch;
+    //public float ViewYaw => _viewYaw;
+    //public float BodyYaw => _bodyYaw;
+    //public Vector2 LookInput => input is not null ? input.Look : Vector2.zero;
+
+    private void Awake()
+    {
+        if (input is null) input = GetComponent<PlayerInputReader>();
+        if (!RequireRef.Check(input, this, nameof(input))) return;
+
+        if (cameraPivot is null) cameraPivot = transform.Find("CameraRig/CameraPivot");
+        if (!RequireRef.Check(cameraPivot, this, nameof(cameraPivot))) return;
+
+        if (headEndBone is null) headEndBone = transform.Find("Armature/root/pelvis/spine/chest/neck/head/head_end");
+        if (!RequireRef.Check(headEndBone, this, nameof(headEndBone))) return;
+
+        if (eyes is null) eyes = headEndBone.GetChild(0);
+        if (!RequireRef.Check(eyes, this, nameof(eyes))) return;
+
+        if (lookAt is null) lookAt = GetComponent<LookAtIK>();
+        if (!RequireRef.Check(lookAt, this, nameof(lookAt))) return;
+
+        lookAt.solver.OnPostUpdate += PostIKFollow;
+    }
+
+#if UNITY_EDITOR
+    private void OnValidate()
+    {
+        RequireRef.Warn(lookAt, this, nameof(lookAt));
+        RequireRef.Warn(input, this, nameof(input));
+        RequireRef.Warn(cameraPivot, this, nameof(cameraPivot));
+        RequireRef.Warn(headEndBone, this, nameof(headEndBone));
+        RequireRef.Warn(eyes, this, nameof(eyes));
+    }
+#endif
+
+    void Reset()
+    {
+        lookAt = GetComponentInChildren<LookAtIK>();
+        input = GetComponent<PlayerInputReader>();
+        cameraPivot = transform.Find("CameraRig/CameraPivot");
+        headEndBone = transform.Find("Armature/root/pelvis/spine/chest/neck/head/head_end");
+        eyes = headEndBone.GetChild(0);
+    }
 
     void Start()
     {
-        Cursor.lockState = CursorLockMode.Locked;
-        Cursor.visible = false;
-
-        if (input == null) input = GetComponent<PlayerInputReader>();
-
-        if (cameraPivot is null)
+        // Create look target if needed
+        if (_lookTarget is null)
         {
-            Debug.LogError("PlayerLooker: Camera pivot not assigned");
-            enabled = false;
-            return;
-        }
-
-        // Initialize rotations
-        Vector3 currentRot = cameraPivot.localEulerAngles;
-        _viewYaw = currentRot.y;
-        _bodyYaw = transform.eulerAngles.y;
-        _pitch = currentRot.x;
-
-        if (lookAt is null) lookAt = GetComponentInChildren<LookAtIK>();
-        if (lookAt is null)
-        {
-            Debug.LogWarning("PlayerLooker: No LookAtIK found.");
-            enabled = false;
-            return;
-        }
-        else
-        {
-            // Create look target if needed
-            if (_lookTarget is null)
-            {
-                GameObject targetObj = new GameObject("LookTarget");
-                _lookTarget = targetObj.transform;
-            }
-
-            lookAt.solver.target = _lookTarget;
+            _lookTarget = new GameObject("LookTarget").transform;
+            _lookTarget.SetParent(transform, true);
             _lookTarget.position = cameraPivot.position + cameraPivot.forward * targetDistance;
         }
 
-        if (headEndBone is null)
-        {
-            Debug.LogWarning("PlayerLooker: No head_end bone assigned.");
-            enabled = false;
-            return;
-        }
-
-        if (eyes is null)
-        {
-            Debug.LogWarning("PlayerLooker: No eyes transform assigned.");
-            enabled = false;
-            return;
-        }
+        lookAt.solver.target = _lookTarget;
         cameraPivot.position = eyes.position;
 
+        // Initialize rotation angles (yaw left/right, pitch up/down)
+        Vector3 flatFwd = Vector3.ProjectOnPlane(cameraPivot.forward, Vector3.up);
+        if (flatFwd.sqrMagnitude < 0.0001f) flatFwd = transform.forward;
+        _yaw = Quaternion.LookRotation(flatFwd.normalized, Vector3.up);
+        _pitch = cameraPivot.localEulerAngles.x;
+        if (_pitch > 180f) _pitch -= 360f;
     }
 
     void Update()
@@ -130,51 +126,60 @@ public class PlayerLooker : MonoBehaviour
         HandleLook();
     }
 
-    void LateUpdate()
-    {
-        HandleLookIK();
-        HandleCameraFollow();
-    }
-
     private void HandleLook()
     {
-        if (input == null || cameraPivot == null) return;
+        if (input is null || cameraPivot is null) return;
 
-        Vector2 inputLook = input.Look;
-        float mouseX = inputLook.x * lookSensitivity * Time.deltaTime;
-        float mouseY = inputLook.y * lookSensitivity * Time.deltaTime;
+        Vector2 look = input.Look;
+        float yawDelta = look.x * lookSensitivity;
+        float pitchDelta = look.y * lookSensitivity;
 
-        _viewYaw += mouseX;
+        // Update camera yaw (left/right)
+        _yaw *= Quaternion.AngleAxis(yawDelta, Vector3.up);
 
-        // Calculate how far camera is twisted from body
-        float yawOffset = Mathf.DeltaAngle(_bodyYaw, _viewYaw);
+        // Update camera pitch (up/down) - clamped
+        _pitch = Mathf.Clamp(_pitch - pitchDelta, -maxLookDown, maxLookUp);
 
-        // Clamp the upper body twist
-        float clampedOffset = Mathf.Clamp(yawOffset, -maxUpperBodyTwist, maxUpperBodyTwist);
+        // Calculate how far camera is twisted (left/right) from Player
+        Vector3 bodyFwd = Vector3.ProjectOnPlane(transform.forward, Vector3.up).normalized;
+        Vector3 viewFwd = Vector3.ProjectOnPlane(_yaw * Vector3.forward, Vector3.up).normalized;
+        float yawOffset = Vector3.SignedAngle(bodyFwd, viewFwd, Vector3.up);
 
-        _pitch = Mathf.Clamp(_pitch - mouseY, -maxLookDown, maxLookUp);
+        // Clamp how much the cameraPivot is allowed to twist relative to Player
+        float clampedYawOffset = Mathf.Clamp(yawOffset, -maxUpperBodyTwist, maxUpperBodyTwist);
+        float excessYaw = yawOffset - clampedYawOffset;
 
-        // Apply rotation to camera pivot (relative to body)
-        cameraPivot.localRotation = Quaternion.Euler(_pitch, clampedOffset, 0f);
-
-        // Turn body if we exceed the twist limit
-        if (Mathf.Abs(yawOffset) > maxUpperBodyTwist + bodyTurnDeadzone)
+        if (Mathf.Abs(excessYaw) > bodyTurnDeadzone)
         {
-            // Smoothly turn body to catch up with camera
-            float targetBodyYaw = _viewYaw - Mathf.Sign(yawOffset) * maxUpperBodyTwist;
-            _bodyYaw = Mathf.MoveTowardsAngle(_bodyYaw, targetBodyYaw, bodyTurnSpeed * Time.deltaTime);
+            // Exponential body-turn smoothing factor
+            float t = Mathf.Exp(bodyTurnCorrection * Time.deltaTime);
 
-            // Apply body rotation
-            transform.rotation = Quaternion.Euler(0f, _bodyYaw, 0f);
+            // Rotate body by a fraction of the excess this frame
+            float bodyDelta = excessYaw * t;
+            transform.rotation = Quaternion.AngleAxis(bodyDelta, Vector3.up) * transform.rotation;
+
+            // Recompute yaw offset after rotating body
+            bodyFwd = Vector3.ProjectOnPlane(transform.forward, Vector3.up).normalized;
+            yawOffset = Vector3.SignedAngle(bodyFwd, viewFwd, Vector3.up);
+            clampedYawOffset = Mathf.Clamp(yawOffset, -maxUpperBodyTwist, maxUpperBodyTwist);
+
         }
+
+        // Apply local camera pivot rotation
+        Quaternion yawRel = Quaternion.AngleAxis(clampedYawOffset, Vector3.up);
+        Quaternion pitchRel = Quaternion.AngleAxis(_pitch, Vector3.right);
+        cameraPivot.localRotation = yawRel * pitchRel;
     }
 
-    private void HandleLookIK()
+    void OnDestroy()
     {
-        if (lookAt is null || _lookTarget is null || cameraPivot is null) return;
+        if (lookAt != null) lookAt.solver.OnPostUpdate -= PostIKFollow;
+    }
 
+    void PostIKFollow()
+    { 
         // Calculate desired look target position
-        Vector3 origin = cameraPivot.position;
+        Vector3 origin = eyes.position;
         Vector3 dir = cameraPivot.forward;
         Vector3 desiredTargetPos = origin + dir * targetDistance;
 
@@ -183,32 +188,22 @@ public class PlayerLooker : MonoBehaviour
         _lookTarget.position = Vector3.Lerp(_lookTarget.position, desiredTargetPos, t);
     }
 
-    private void HandleCameraFollow()
-    {
-        if (cameraPivot is null || eyes is null) return;
-
-        // Move camera pivot to follow eyes/head position
-        Vector3 desired = eyes.position;
-        float t = 1f - Mathf.Exp(-cameraPositionLerp * Time.deltaTime);
-        cameraPivot.position = Vector3.Lerp(cameraPivot.position, desired, t);
-    }
-
     private void OnDrawGizmos()
     {
         if (!Application.isPlaying) return;
 
         // Draw look target
-        if (_lookTarget != null)
+        if (_lookTarget is not null)
         {
             Gizmos.color = Color.yellow;
             Gizmos.DrawWireSphere(_lookTarget.position, 0.15f);
         }
 
         // Draw camera info
-        if (cameraPivot != null)
+        if (cameraPivot is not null)
         {
             Gizmos.color = Color.cyan;
-            if (_lookTarget != null)
+            if (_lookTarget is not null)
                 Gizmos.DrawLine(cameraPivot.position, _lookTarget.position);
 
             Gizmos.color = Color.red;

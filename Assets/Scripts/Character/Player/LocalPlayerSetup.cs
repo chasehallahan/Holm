@@ -21,8 +21,8 @@ public class LocalPlayerSetup : MonoBehaviour
 
     void Awake()
     {
-        if (!RequireRef.Check(worldMesh, this, nameof(worldMesh))) return;
-        if (!RequireRef.Check(localMesh, this, nameof(localMesh))) return;
+        RequireRef.Check(worldMesh, this, nameof(worldMesh));
+        RequireRef.Check(localMesh, this, nameof(localMesh));
     }
 
 #if UNITY_EDITOR
@@ -40,9 +40,9 @@ public class LocalPlayerSetup : MonoBehaviour
 
     public void ApplyLocalState(bool local)
     {
-        // Visuals
-        if (worldMesh) worldMesh.enabled = !local;
-        if (localMesh) localMesh.enabled = local;
+        // TEMP: flipped for debug
+        if (worldMesh) worldMesh.enabled = local;
+        if (localMesh) localMesh.enabled = !local;
 
         // Cameras
         if (playerCameras is not null)

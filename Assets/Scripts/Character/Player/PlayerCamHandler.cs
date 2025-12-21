@@ -17,8 +17,8 @@ public class PlayerCamHandler : MonoBehaviour
 
     void Awake()
     {
-        if (!RequireRef.Check(cameraRig, this, nameof(cameraRig))) return;
-        if (!RequireRef.Check(eyes, this, nameof(eyes))) return;
+        RequireRef.Check(cameraRig, this, nameof(cameraRig));
+        RequireRef.Check(eyes, this, nameof(eyes));
     }
 
 #if UNITY_EDITOR

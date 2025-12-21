@@ -1,7 +1,7 @@
 using RootMotion.FinalIK;
 using UnityEngine;
 
-[RequireComponent(typeof(PlayerInputReader))]
+[RequireComponent(typeof(PlayerInputReader), typeof(CharacterController))]
 public class PlayerLooker : MonoBehaviour
 {
     [Header("References")]
@@ -13,12 +13,6 @@ public class PlayerLooker : MonoBehaviour
 
     [Tooltip("Final IK LookAtIK component controlling head/spine look direction.")]
     [SerializeField] private LookAtIK lookAt;
-
-    [Tooltip("Head bone transform. Used for camera follow if Eyes is not provided and/or for debugging.")]
-    [SerializeField] private Transform headEndBone;
-
-    [Tooltip("Preferred eye/eyes anchor transform. CameraPivot follows this position.")]
-    [SerializeField] private Transform eyes;
 
     [Header("Look Sensitivity")]
     [Tooltip("Mouse/controller look sensitivity multiplier.")]
@@ -49,33 +43,27 @@ public class PlayerLooker : MonoBehaviour
     [Tooltip("Smoothing speed for the LookTarget position. Higher = snappier (less lag). Exponential smoothing.")]
     [Range(0f, 200f)] [SerializeField] private float targetPositionLerp = 30f;
 
+
+    [Header("Debug")]
+    [SerializeField] private bool showDebugGizmos = false;
+
+
+    private Transform _eyes;
     private Transform _lookTarget;
+
     private float _pitch;      // Camera pitch (up/down)
     private Quaternion _yaw;    // Camera yaw (left/right)
-
-    // Public accessors
-    //public Transform LookTarget => _lookTarget;
-    //public float Pitch => _pitch;
-    //public float ViewYaw => _viewYaw;
-    //public float BodyYaw => _bodyYaw;
-    //public Vector2 LookInput => input is not null ? input.Look : Vector2.zero;
 
     private void Awake()
     {
         if (input is null) input = GetComponent<PlayerInputReader>();
-        if (!RequireRef.Check(input, this, nameof(input))) return;
+        RequireRef.Check(input, this, nameof(input));
 
         if (cameraPivot is null) cameraPivot = transform.Find("CameraRig/CameraPivot");
-        if (!RequireRef.Check(cameraPivot, this, nameof(cameraPivot))) return;
-
-        if (headEndBone is null) headEndBone = transform.Find("Armature/root/pelvis/spine/chest/neck/head/head_end");
-        if (!RequireRef.Check(headEndBone, this, nameof(headEndBone))) return;
-
-        if (eyes is null) eyes = headEndBone.GetChild(0);
-        if (!RequireRef.Check(eyes, this, nameof(eyes))) return;
+        RequireRef.Check(cameraPivot, this, nameof(cameraPivot));
 
         if (lookAt is null) lookAt = GetComponent<LookAtIK>();
-        if (!RequireRef.Check(lookAt, this, nameof(lookAt))) return;
+        RequireRef.Check(lookAt, this, nameof(lookAt));
 
         lookAt.solver.OnPostUpdate += PostIKFollow;
     }
@@ -86,22 +74,14 @@ public class PlayerLooker : MonoBehaviour
         RequireRef.Warn(lookAt, this, nameof(lookAt));
         RequireRef.Warn(input, this, nameof(input));
         RequireRef.Warn(cameraPivot, this, nameof(cameraPivot));
-        RequireRef.Warn(headEndBone, this, nameof(headEndBone));
-        RequireRef.Warn(eyes, this, nameof(eyes));
     }
 #endif
 
-    void Reset()
-    {
-        lookAt = GetComponentInChildren<LookAtIK>();
-        input = GetComponent<PlayerInputReader>();
-        cameraPivot = transform.Find("CameraRig/CameraPivot");
-        headEndBone = transform.Find("Armature/root/pelvis/spine/chest/neck/head/head_end");
-        eyes = headEndBone.GetChild(0);
-    }
-
     void Start()
     {
+        if (_eyes is null) _eyes = lookAt.solver.head.transform.Find("eyes");
+        if (_eyes is null) Debug.LogError("PlayerLooker: Missing eyes transform!");
+
         // Create look target if needed
         if (_lookTarget is null)
         {
@@ -111,7 +91,7 @@ public class PlayerLooker : MonoBehaviour
         }
 
         lookAt.solver.target = _lookTarget;
-        cameraPivot.position = eyes.position;
+        cameraPivot.position = _eyes.position;
 
         // Initialize rotation angles (yaw left/right, pitch up/down)
         Vector3 flatFwd = Vector3.ProjectOnPlane(cameraPivot.forward, Vector3.up);
@@ -156,7 +136,7 @@ public class PlayerLooker : MonoBehaviour
 
             // Rotate body by a fraction of the excess this frame
             float bodyDelta = excessYaw * t;
-            transform.rotation = Quaternion.AngleAxis(bodyDelta, Vector3.up) * transform.rotation;
+            transform.rotation *= Quaternion.AngleAxis(bodyDelta, Vector3.up);
 
             // Recompute yaw offset after rotating body
             bodyFwd = Vector3.ProjectOnPlane(transform.forward, Vector3.up).normalized;
@@ -179,7 +159,7 @@ public class PlayerLooker : MonoBehaviour
     void PostIKFollow()
     { 
         // Calculate desired look target position
-        Vector3 origin = eyes.position;
+        Vector3 origin = _eyes.position;
         Vector3 dir = cameraPivot.forward;
         Vector3 desiredTargetPos = origin + dir * targetDistance;
 
@@ -190,7 +170,7 @@ public class PlayerLooker : MonoBehaviour
 
     private void OnDrawGizmos()
     {
-        if (!Application.isPlaying) return;
+        if (!Application.isPlaying || !showDebugGizmos) return;
 
         // Draw look target
         if (_lookTarget is not null)

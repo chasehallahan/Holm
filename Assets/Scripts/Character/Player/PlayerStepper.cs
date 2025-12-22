@@ -1,76 +1,86 @@
 using RootMotion.FinalIK;
 using UnityEngine;
 
-[RequireComponent(typeof(CharacterController), typeof(FullBodyBipedIK), typeof(PlayerMover))]
+[RequireComponent(typeof(CharacterController), typeof(PlayerMover))]
 public class PlayerStepper : MonoBehaviour
 {
-
     [Header("Stance Settings")]
-    [Tooltip("How wide apart the feet are while player stands (foot position to player center).")]
+    [Tooltip("Lateral distance from player center to each foot while idle.")]
     [SerializeField] private float stanceWidth = 0.1f;
-    [Tooltip("Negative y applied to body effector while standing to simulate natural standing.")]
-    [SerializeField] private float stanceSlouch = 0.08f;
+
+    [Tooltip("Downward body offset to create natural knee bend while standing.")]
+    [SerializeField][Range(0.04f, 0.16f)] private float stanceSlouch = 0.1f;
 
     [Header("Stride Settings")]
-    [Tooltip("How wide apart the feet are while player walks (foot position to player center).")]
+    [Tooltip("Lateral distance from player center to each foot while walking.")]
     [SerializeField] private float strideWidth = 0.08f;
-    [Tooltip("How far forward the player steps at base walk speed.")]
+
+    [Tooltip("Forward distance of each step at base walk speed.")]
     [SerializeField] private float strideLength = 0.3f;
-    [Tooltip("Minimum foot distance from ideal to trigger a step.")]
+
+    [Tooltip("Minimum drift from ideal position before a step triggers.")]
     [SerializeField] private float stepTrigger = 0.08f;
-    [Tooltip("How long each step takes (seconds) at base walk speed")]
-    [SerializeField] private float strideDuration = 0.2f;
-    [Tooltip("Minimum step duration clamp.")]
-    [SerializeField] private float minStrideDuration = 0.1f;
-    [Tooltip("Maximum step duration clamp.")]
-    [SerializeField] private float maxStrideDuration = 0.4f;
-    [Tooltip("How high feet lift during steps")]
+
+    [Tooltip("Step duration in seconds.")]
+    [SerializeField] [Range(0.01f, 0.3f)] private float strideDuration = 0.2f;
+
+    [Tooltip("Maximum foot lift height during steps.")]
     [SerializeField] private float stepHeight = 0.24f;
-    [Tooltip("Shape of the step arc (X = step progress 0-1, Y = height 0-1)")]
-    [SerializeField] private AnimationCurve stepHeightCurve = new AnimationCurve(
+
+    [Tooltip("Step arc shape. X: step progress (0-1), Y: height multiplier (0-1).")]
+    [SerializeField]
+    private AnimationCurve stepHeightCurve = new AnimationCurve(
         new Keyframe(0f, 0f, 0f, 3f),
         new Keyframe(0.5f, 1f, 0f, 0f),
         new Keyframe(1f, 0f, -3f, 0f)
     );
 
-    [Tooltip("How far ahead to predict movement for step placement (seconds)")]
+    [Tooltip("Speed threshold (m/s) below which steps are corrective rather than directional.")]
+    [SerializeField] private float correctiveSteppingThreshold = 0.05f;
+
+    [Tooltip("Time in seconds to predict ahead for step placement.")]
     [SerializeField] private float lookAheadTime = 0.05f;
 
-    [Header("Ground Detection")]
-    [Tooltip("Distance from foot bone (ankle) position to bottom of foot mesh.")]
-    [SerializeField] private float footToMesh = 0.08f;
-    [SerializeField] private LayerMask groundLayer;
-    [SerializeField] private float probeUp = 1.5f;
-
-    [Header("Plant Correction")]
-    [Tooltip("Deadzone (meters). If the solved foot bone drifts farther than this from plantedPos, we slide plantedPos to reduce stretch/pop.")]
+    [Header("Planted Foot Correction")]
+    [Tooltip("Max allowed drift between IK target and solved bone before sliding correction.")]
     [SerializeField] private float maxPlantDivergence = 0.03f;
 
-    [Tooltip("Max slide speed for plant correction (m/s). Prevents visible snapping.")]
+    [Tooltip("Max correction slide speed (m/s) to prevent visible snapping.")]
     [SerializeField] private float plantSlideSpeed = 0.6f;
 
+    [Header("Ground Detection")]
+    [Tooltip("Vertical offset from ankle bone to foot sole.")]
+    [SerializeField] private float footToMesh = 0.08f;
+
+    [Tooltip("Layers considered as walkable ground.")]
+    [SerializeField] private LayerMask groundLayer;
+
+    [Tooltip("Raycast origin height above foot position.")]
+    [SerializeField] private float probeUp = 1.5f;
 
     [Header("Debug")]
     [SerializeField] private bool showDebug = true;
 
-    // References
+    // Components
     private CharacterController _controller;
     private FullBodyBipedIK _fbbik;
     private IKSolverFullBodyBiped _ikSolver;
 
-    // Runtime state
+    // IK Structures
     private Foot _leftFoot;
     private Foot _rightFoot;
     private Thigh _leftThigh;
     private Thigh _rightThigh;
     private Body _body;
+
+    // Runtime State
     private Vector3 _velocity;
     private bool _leftFootTurn = true;
 
 
     private class Foot
     {
-        // runtime dynamic
+        // Dynamic state
         public Vector3 plantedPos;
         public Vector3 stepFromPos;
         public Vector3 stepToPos;
@@ -79,21 +89,25 @@ public class PlayerStepper : MonoBehaviour
         public bool isStepping = false;
         public Vector3 lastSolvedBonePos;
 
-        //read-only
+        // Immutable references
         public readonly bool isLeft;
         public readonly Transform bone;
         public readonly Transform ikTarget;
+        public readonly Vector3 defaultLocalPos;
+        public readonly Quaternion defaultLocalRot;
 
-        public Foot(bool left, IKEffector effector)
+        public Foot(bool left, IKEffector effector, Transform player)
         {
             isLeft = left;
             bone = effector.bone;
 
-            // create and set ik target game object transform at bone position
-            ikTarget = new GameObject(isLeft ? "LeftFootTarget" : "RightFootTarget").transform;
-            ikTarget.SetParent(null, true);
-            ikTarget.SetPositionAndRotation(bone.position, bone.rotation);
+            defaultLocalPos = player.InverseTransformPoint(bone.position);
+            defaultLocalRot = Quaternion.Inverse(player.rotation) * bone.rotation;
 
+            // Create IK target at current bone position
+            ikTarget = new GameObject(isLeft ? "LeftFootTarget" : "RightFootTarget").transform;
+            ikTarget.SetParent(player, true);
+            ikTarget.SetLocalPositionAndRotation(defaultLocalPos, defaultLocalRot);
             effector.target = ikTarget;
 
             plantedPos = ikTarget.position;
@@ -121,7 +135,6 @@ public class PlayerStepper : MonoBehaviour
             ikTarget = new GameObject(isLeft ? "LeftThighTarget" : "RightThighTarget").transform;
             ikTarget.SetParent(player.transform, true);
             ikTarget.SetLocalPositionAndRotation(defaultLocalPos, defaultLocalRot);
-
             effector.target = ikTarget;
         }
     }
@@ -142,7 +155,6 @@ public class PlayerStepper : MonoBehaviour
             ikTarget = new GameObject("BodyEffectorTarget").transform;
             ikTarget.SetParent(player.transform, true);
             ikTarget.SetLocalPositionAndRotation(defaultLocalPos, defaultLocalRot);
-
             effector.target = ikTarget;
         }
     }
@@ -152,57 +164,63 @@ public class PlayerStepper : MonoBehaviour
         if (_controller is null) _controller = GetComponent<CharacterController>();
         RequireRef.Check(_controller, this, nameof(_controller));
 
-        if (_fbbik is null) _fbbik = GetComponent<FullBodyBipedIK>();
+        if (_fbbik is null) _fbbik = GetComponentInChildren<FullBodyBipedIK>();
         RequireRef.Check(_fbbik, this, nameof(_fbbik));
-        _ikSolver = _fbbik.solver;
     }
 
     void Start()
     {
-        _leftFoot = new Foot(true, _ikSolver.leftFootEffector);
-        _rightFoot = new Foot(false, _ikSolver.rightFootEffector);
+        _ikSolver = _fbbik.solver;
 
-        // ------ FEET ------
-        // set inital feet plant positions
-        _leftFoot.plantedPos = ProjectToGround(_leftFoot.bone.position);
-        _rightFoot.plantedPos = ProjectToGround(_rightFoot.bone.position);
+        InitializeFeet();
+        InitializeThighs();
+        InitializeBody();
+        ConfigureEffectorWeights();
 
-        _leftFoot.ikTarget.position = _leftFoot.plantedPos;
-        _rightFoot.ikTarget.position = _rightFoot.plantedPos;
+        // Hook into solver to avoid execution order issues
+        _ikSolver.OnPreUpdate += UpdateIKTargets;
+        _ikSolver.OnPostUpdate += CacheSolvedPositions;
+    }
 
-        // Initialize cache (prevents first-frame weirdness)
-        _leftFoot.lastSolvedBonePos = _leftFoot.bone.position;
-        _rightFoot.lastSolvedBonePos = _rightFoot.bone.position;
+    private void InitializeFeet()
+    {
+        _leftFoot = new Foot(true, _ikSolver.leftFootEffector, transform);
+        _rightFoot = new Foot(false, _ikSolver.rightFootEffector, transform);
 
-        // ------ THIGHS ------
+        _leftFoot.plantedPos = _leftFoot.ikTarget.position;
+        _rightFoot.plantedPos = _rightFoot.ikTarget.position;
+
+        // Initialize cache to prevent first-frame artifacts
+        _leftFoot.lastSolvedBonePos = _leftFoot.plantedPos;
+        _rightFoot.lastSolvedBonePos = _rightFoot.plantedPos;
+    }
+
+    private void InitializeThighs()
+    {
         _leftThigh = new Thigh(true, _ikSolver.leftThighEffector, transform);
         _rightThigh = new Thigh(false, _ikSolver.rightThighEffector, transform);
+    }
 
-        // ------ BODY ------
+    private void InitializeBody()
+    {
         _body = new Body(_ikSolver.bodyEffector, transform);
-        
-        // drop body effector for a little knee bend while standing
         _body.ikTarget.localPosition -= Vector3.up * stanceSlouch;
+    }
 
-        // FBBIK settings
-        _ikSolver.leftFootEffector.positionWeight = 0.5f;
-        _ikSolver.rightFootEffector.positionWeight = 0.5f;
-        _ikSolver.leftFootEffector.rotationWeight = 0.5f;
-        _ikSolver.rightFootEffector.rotationWeight = 0.5f;
+    private void ConfigureEffectorWeights()
+    {
+        _ikSolver.leftFootEffector.positionWeight = 1f;
+        _ikSolver.rightFootEffector.positionWeight = 1f;
+        _ikSolver.leftFootEffector.rotationWeight = 1f;
+        _ikSolver.rightFootEffector.rotationWeight = 1f;
 
-        _ikSolver.leftThighEffector.positionWeight = 1f;
-        _ikSolver.rightThighEffector.positionWeight = 1f;
-        _ikSolver.leftThighEffector.rotationWeight = 1f;
-        _ikSolver.rightThighEffector.rotationWeight = 1f;
+        _ikSolver.leftThighEffector.positionWeight = 0.5f;
+        _ikSolver.rightThighEffector.positionWeight = 0.5f;
+        _ikSolver.leftThighEffector.rotationWeight = 0.5f;
+        _ikSolver.rightThighEffector.rotationWeight = 0.5f;
 
         _ikSolver.bodyEffector.positionWeight = 1f;
         _ikSolver.bodyEffector.rotationWeight = 1f;
-
-        // Drive targets right before the solver runs (avoids script execution order issues)
-        _ikSolver.OnPreUpdate += UpdateIKTargets;
-
-        // Cache solved bone positions right after the solver runs
-        _ikSolver.OnPostUpdate += CacheSolvedPositions;
     }
 
     private void OnDestroy()
@@ -220,11 +238,13 @@ public class PlayerStepper : MonoBehaviour
 
     void Update()
     {
+        if (!_controller.isGrounded) return;
+
         UpdateVelocity();
         AdvanceStep(_leftFoot);
         AdvanceStep(_rightFoot);
 
-        // accounts for ik target drift from bone location due to ik leg constraints (foot skate)
+        // Correct planted foot drift caused by IK leg length constraints
         CorrectPlantedFoot(_leftFoot);
         CorrectPlantedFoot(_rightFoot);
 
@@ -233,10 +253,9 @@ public class PlayerStepper : MonoBehaviour
 
     private void CorrectPlantedFoot(Foot foot)
     {
-        if (foot == null) return;
         if (foot.isStepping) return;
 
-        // Planar divergence only
+        // Compare horizontal positions only
         Vector3 planted = foot.plantedPos; planted.y = 0f;
         Vector3 solved = foot.lastSolvedBonePos; solved.y = 0f;
 
@@ -245,14 +264,11 @@ public class PlayerStepper : MonoBehaviour
 
         if (dist <= maxPlantDivergence) return;
 
-        // How much we want to close the gap (beyond deadzone)
+        // Slide toward solved position, clamped to max speed
         float desiredMove = dist - maxPlantDivergence;
-
-        // Limit slide per frame to avoid snapping
         float maxMoveThisFrame = plantSlideSpeed * Time.deltaTime;
         float move = Mathf.Min(desiredMove, maxMoveThisFrame);
 
-        // Apply correction and keep it on ground
         foot.plantedPos += (delta / dist) * move;
         foot.plantedPos = ProjectToGround(foot.plantedPos);
     }
@@ -260,7 +276,7 @@ public class PlayerStepper : MonoBehaviour
     private void UpdateVelocity()
     {
         _velocity = _controller.velocity;
-        _velocity.y = 0;
+        _velocity.y = 0f;
     }
 
     private void AdvanceStep(Foot foot)
@@ -279,49 +295,41 @@ public class PlayerStepper : MonoBehaviour
 
     private void CheckForSteps()
     {
-        if (_leftFoot.isStepping || _rightFoot.isStepping) return;  // TODO: add overlap for running/sprinting
+        // TODO: Allow step overlap for running/sprinting
+        if (_leftFoot.isStepping || _rightFoot.isStepping) return;
 
-        Vector3 leftHome = GetHomePosition(_leftFoot);
-        Vector3 rightHome = GetHomePosition(_rightFoot);
+        Vector3 leftTarget = GetStepTarget(_leftFoot);
+        Vector3 rightTarget = GetStepTarget(_rightFoot);
 
-        float leftDrift = HorizontalDistance(_leftFoot.plantedPos, leftHome);
-        float rightDrift = HorizontalDistance(_rightFoot.plantedPos, rightHome);
+        float leftDrift = HorizontalDistance(_leftFoot.plantedPos, leftTarget);
+        float rightDrift = HorizontalDistance(_rightFoot.plantedPos, rightTarget);
 
         bool leftNeeds = leftDrift > stepTrigger;
         bool rightNeeds = rightDrift > stepTrigger;
 
-        // Nobody needs to step
         if (!leftNeeds && !rightNeeds) return;
 
-        // Only one foot needs it - easy choice
-        if (leftNeeds && !rightNeeds)
+        // Single foot needs to step
+        if (leftNeeds != rightNeeds)
         {
-            StartStep(_leftFoot);
-            _leftFootTurn = false;
-            return;
-        }
-        if (rightNeeds && !leftNeeds)
-        {
-            StartStep(_rightFoot);
-            _leftFootTurn = true;
+            if (leftNeeds)
+            {
+                StartStep(_leftFoot);
+                _leftFootTurn = false;
+            }
+            else
+            {
+                StartStep(_rightFoot);
+                _leftFootTurn = true;
+            }
             return;
         }
 
-        // Both need to step - alternate, but override if one is much worse
+        // Both need to step — prioritize urgency, then alternate
         bool leftUrgent = leftDrift > rightDrift * 1.5f;
         bool rightUrgent = rightDrift > leftDrift * 1.5f;
 
-        if (leftUrgent)
-        {
-            StartStep(_leftFoot);
-            _leftFootTurn = false;
-        }
-        else if (rightUrgent)
-        {
-            StartStep(_rightFoot);
-            _leftFootTurn = true;
-        }
-        else if (_leftFootTurn)
+        if (leftUrgent || (!rightUrgent && _leftFootTurn))
         {
             StartStep(_leftFoot);
             _leftFootTurn = false;
@@ -344,24 +352,30 @@ public class PlayerStepper : MonoBehaviour
 
     private Vector3 GetStepTarget(Foot foot)
     {
-        Vector3 home = GetHomePosition(foot);
+        float side = foot.isLeft ? -1f : 1f;
 
-        // When moving, add velocity prediction to step target
-        if (_velocity.sqrMagnitude > 0.0001f)
+        // Directional stepping: place foot ahead of predicted position
+        if (_velocity.sqrMagnitude > correctiveSteppingThreshold * correctiveSteppingThreshold)
         {
-            home += _velocity * lookAheadTime;
+            Vector3 fwdDir = _velocity.normalized;
+            Vector3 rightDir = Vector3.Cross(Vector3.up, fwdDir).normalized;
+
+            float predictTime = strideDuration * 0.5f + lookAheadTime;
+            Vector3 predictedPos = transform.position + _velocity * predictTime;
+
+            Vector3 target = predictedPos + fwdDir * strideLength + rightDir * (side * strideWidth);
+            return ProjectToGround(target);
         }
 
-        return ProjectToGround(home);
+        // Corrective stepping: return to stance position under pelvis
+        Vector3 stanceTarget = transform.position + transform.right * (side * stanceWidth);
+        return ProjectToGround(stanceTarget);
     }
 
     private float GetStepDuration(Foot foot)
     {
-        // TODO: me thinks this also needs to be scaled to velocity, not just distance
-        float distance = Vector3.Distance(foot.stepFromPos, foot.stepToPos);
-        float baseStepSpeed = strideLength / strideDuration;
-        float duration = distance / baseStepSpeed;
-        return Mathf.Clamp(duration, minStrideDuration, maxStrideDuration);
+        // TODO: figure this out, do we need it? Does it need a tuning variable?
+        return strideDuration;
     }
 
     private void UpdateIKTargets()
@@ -373,19 +387,18 @@ public class PlayerStepper : MonoBehaviour
 
     private void UpdateBodyIK(Body body)
     {
-    
+        // TODO: Body bob/sway logic
     }
 
     private void UpdateFootIK(Foot foot)
     {
         Vector3 pos;
+
         if (foot.isStepping)
         {
             float t = Mathf.SmoothStep(0f, 1f, foot.stepProgress);
             pos = Vector3.Lerp(foot.stepFromPos, foot.stepToPos, t);
-
-            float heightScale = stepHeightCurve.Evaluate(foot.stepProgress);
-            pos.y += heightScale * stepHeight;
+            pos.y += stepHeightCurve.Evaluate(foot.stepProgress) * stepHeight;
         }
         else
         {
@@ -395,48 +408,23 @@ public class PlayerStepper : MonoBehaviour
         foot.ikTarget.position = pos;
     }
 
-    private Vector3 GetHomePosition(Foot foot)
-    {
-        Vector3 fwdDir;
-        Vector3 rightDir;
-        float stride;
-        float width; 
-
-        if (_velocity.sqrMagnitude > 0.001f)
-        {
-            
-            fwdDir = _velocity.normalized;    
-            stride = strideLength;
-            rightDir = Vector3.Cross(Vector3.up, fwdDir).normalized;
-            width = strideWidth;
-        }
-        else
-        {
-            fwdDir = transform.forward;
-            stride = 0f;
-            rightDir = transform.right;
-            width = stanceWidth;
-
-        }
-
-        float side = foot.isLeft ? -width : width;
-        return transform.position + fwdDir * stride + rightDir * side;
-    }
-
     private Vector3 ProjectToGround(Vector3 pos)
     {
         Vector3 origin = pos + Vector3.up * probeUp;
+
         if (Physics.Raycast(origin, Vector3.down, out RaycastHit hit, probeUp * 3f, groundLayer, QueryTriggerInteraction.Ignore))
         {
-            return hit.point + Vector3.up * footToMesh;  // TODO: add normal detection and foot rotation
+            // TODO: Use hit.normal for foot rotation alignment
+            return hit.point + Vector3.up * footToMesh;
         }
+
         return new Vector3(pos.x, transform.position.y, pos.z);
     }
 
     private float HorizontalDistance(Vector3 a, Vector3 b)
     {
-        a.y = 0;
-        b.y = 0;
+        a.y = 0f;
+        b.y = 0f;
         return Vector3.Distance(a, b);
     }
 
@@ -445,46 +433,32 @@ public class PlayerStepper : MonoBehaviour
         if (!showDebug || !Application.isPlaying) return;
         if (_leftFoot == null || _rightFoot == null) return;
 
-        Vector3 leftHome = GetHomePosition(_leftFoot);
-        Vector3 rightHome = GetHomePosition(_rightFoot);
+        const float radius = 0.05f;
+        const float axisLength = 0.15f;
 
-        Gizmos.color = Color.red;
-        Gizmos.DrawWireSphere(leftHome, 0.05f);
-        Gizmos.color = Color.blue;
-        Gizmos.DrawWireSphere(rightHome, 0.05f);
-
-
-        // Planted feet
-        DrawFootGizmo(_leftFoot, Color.red);
-        DrawFootGizmo(_rightFoot, Color.blue);
-
-        Gizmos.color = Color.orange;
-        Gizmos.DrawWireSphere(_leftThigh.ikTarget.position, 0.05f);
-        Gizmos.DrawWireSphere(_rightThigh.ikTarget.position, 0.05f);
-    }
-
-    private void DrawFootGizmo(Foot foot, Color color)
-    {
-        if (foot.ikTarget == null) return;
-
-        Gizmos.color = color;
-        Gizmos.DrawSphere(foot.plantedPos, 0.04f);
-
-        if (foot.isStepping)
+        void DrawTarget(Transform t, Color c)
         {
-            Gizmos.color = Color.green;
-            Gizmos.DrawWireSphere(foot.stepToPos, 0.05f);
+            if (t == null) return;
 
-            Gizmos.color = Color.white;
-            Gizmos.DrawSphere(foot.ikTarget.position, 0.03f);
-
-            Gizmos.color = new Color(color.r, color.g, color.b, 0.5f);
-            Gizmos.DrawLine(foot.stepFromPos, foot.ikTarget.position);
-            Gizmos.DrawLine(foot.ikTarget.position, foot.stepToPos);
+            Gizmos.color = c;
+            Gizmos.DrawWireSphere(t.position, radius);
+            Gizmos.DrawLine(t.position, t.position + t.forward * axisLength);
+            Gizmos.DrawLine(t.position, t.position + t.right * (axisLength * 0.75f));
+            Gizmos.DrawLine(t.position, t.position + t.up * (axisLength * 0.75f));
         }
+
+        DrawTarget(_leftFoot.ikTarget, Color.red);
+        DrawTarget(_rightFoot.ikTarget, Color.red);
+        DrawTarget(_leftThigh.ikTarget, new Color(1f, 0.5f, 0f));
+        DrawTarget(_rightThigh.ikTarget, new Color(1f, 0.5f, 0f));
+        DrawTarget(_body.ikTarget, Color.magenta);
     }
 
-    // - GetHomePosition shouldnt exist im running it twice for every step when i could just pass it
-    // - hips arent aligning with body allowing full upper body 360 twist
-    // - legs cross on strafe
+    // - TODO:
+    // - set joint constraints before updating rotation much more to see how things change
+    // - add foot yaw rotation to match player forward
+    // - add foot pitch rotation for step (toe flat -> down -> up -> flat)
+    // -- add spherecast for ground normal to adjust foot pitch for targets (and slight roll if we want)
+    // - add early exit to advance step if velocity has dropped or direction switched in the last bit of the step
+    // - legs cross on strafe - this is gonna need a whole logic for leg crossing in general
 }

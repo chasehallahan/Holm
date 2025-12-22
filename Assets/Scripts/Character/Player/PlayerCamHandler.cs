@@ -1,18 +1,19 @@
 using UnityEngine;
 
-// This neeeds to be executed post IK to pull correct eye position
+[DefaultExecutionOrder(10095)] // Execute after IK solvers
 public class PlayerCamHandler : MonoBehaviour
 {
     [Header("References")]
-    [Tooltip("Transform that CameraPivot is parented under. We move this rig (not the Camera or CameraPivot directly).")]
+    [Tooltip("Root transform that follows the eye position. Parent of CameraPivot.")]
     [SerializeField] private Transform cameraRig;
 
-    [Tooltip("Preferred eye/eyes anchor transform. CameraPivot follows this position.")]
+    [Tooltip("Eye anchor transform. CameraRig position tracks this.")]
     [SerializeField] private Transform eyes;
 
-    [Header("Tuning")]
-    [Tooltip("Smoothing speed for CameraRig position following the Eyes transform. Higher = tighter, lower = floatier.")]
-    [Range(0f, 500f)][SerializeField] private float cameraRigLerp = 120f;
+    [Header("Smoothing")]
+    [Tooltip("Position smoothing speed. Higher = tighter tracking, lower = floatier.")]
+    [Range(0f, 500f)]
+    [SerializeField] private float positionSmoothSpeed = 120f;
 
 
     void Awake()
@@ -29,15 +30,14 @@ public class PlayerCamHandler : MonoBehaviour
     }
 #endif
 
-    private void Start()
+    void Start()
     {
         cameraRig.position = eyes.position;
     }
 
     void LateUpdate()
     {
-
-        float t = 1f - Mathf.Exp(-cameraRigLerp * Time.deltaTime);
+        float t = 1f - Mathf.Exp(-positionSmoothSpeed * Time.deltaTime);
         cameraRig.position = Vector3.Lerp(cameraRig.position, eyes.position, t);
     }
 }

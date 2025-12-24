@@ -10,9 +10,11 @@
   <Project Path="Unity.Splines.csproj" />
   <Project Path="Unity.Burst.csproj" />
   <Project Path="Unity.VisualScripting.Flow.Editor.csproj" />
+  <Project Path="Unity.Animation.Rigging.csproj" />
   <Project Path="Unity.VisualStudio.Editor.csproj" />
   <Project Path="Unity.InputSystem.csproj" />
   <Project Path="Assembly-CSharp-firstpass.csproj" />
+  <Project Path="Unity.Animation.Rigging.Editor.csproj" />
   <Project Path="Unity.Searcher.Editor.csproj" />
   <Project Path="Assembly-CSharp-Editor-firstpass.csproj" />
   <Project Path="Unity.VisualScripting.Core.csproj" />
@@ -38,6 +40,7 @@
   <Project Path="Unity.InputSystem.TestFramework.csproj" />
   <Project Path="Unity.CollabProxy.Editor.csproj" />
   <Project Path="Unity.VisualScripting.Shared.Editor.csproj" />
+  <Project Path="Unity.Animation.Rigging.DocCodeExamples.csproj" />
   <Project Path="Unity.InputSystem.DocCodeSamples.csproj" />
   <Project Path="Unity.VisualScripting.DocCodeExamples.csproj" />
   <Project Path="Unity.PlasticSCM.Editor.Entities.csproj" />

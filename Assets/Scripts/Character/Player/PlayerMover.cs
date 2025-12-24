@@ -76,14 +76,14 @@ public class PlayerMover : MonoBehaviour
         float targetSpeed = walkSpeed * (input.SprintHeld ? sprintMultiplier : 1f);
 
         // Project camera orientation to horizontal plane
-        Vector3 fwd = cameraPivot.forward;
-        Vector3 right = cameraPivot.right;
-        fwd.y = 0f;
-        right.y = 0f;
-        fwd.Normalize();
-        right.Normalize();
+        Vector3 camFwd = cameraPivot.forward;
+        Vector3 camRight = cameraPivot.right;
+        camFwd.y = 0f;
+        camRight.y = 0f;
+        camFwd.Normalize();
+        camRight.Normalize();
 
-        Vector3 moveDir = fwd * moveInput.y + right * moveInput.x;
+        Vector3 moveDir = camFwd * moveInput.y + camRight * moveInput.x;
         Vector2 targetHorizVel = new Vector2(moveDir.x, moveDir.z) * targetSpeed;
 
         float accel = targetHorizVel.sqrMagnitude > 0.001f ? acceleration : deceleration;
@@ -91,6 +91,14 @@ public class PlayerMover : MonoBehaviour
 
         _velocity.x = _currentHorizVel.x;
         _velocity.z = _currentHorizVel.y;
+
+        // Rotate player toward camera direction while moving
+        if (_wantsMove)
+        {
+            Quaternion targetRot = Quaternion.LookRotation(camFwd, Vector3.up);
+            transform.rotation = Quaternion.Slerp(transform.rotation, targetRot, 10f * Time.deltaTime);
+        }
+
     }
 
     private void HandleGravityAndJump()

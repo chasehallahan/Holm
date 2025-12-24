@@ -11,8 +11,8 @@ public class PlayerLooker : MonoBehaviour
     [Tooltip("Camera pivot to rotate for look direction.")]
     [SerializeField] private Transform cameraPivot;
 
-    [Tooltip("Player rig containing FBBIK and LookAtIK components.")]
-    [SerializeField] private GameObject playerRig;
+    [Tooltip("Armature rig containing FBBIK and LookAtIK components.")]
+    [SerializeField] private GameObject armature;
 
     [Header("Look Sensitivity")]
     [Tooltip("Mouse/controller look sensitivity multiplier.")]
@@ -62,7 +62,7 @@ public class PlayerLooker : MonoBehaviour
 #if UNITY_EDITOR
     private void OnValidate()
     {
-        RequireRef.Warn(playerRig, this, nameof(playerRig));
+        RequireRef.Warn(armature, this, nameof(armature));
         RequireRef.Warn(input, this, nameof(input));
         RequireRef.Warn(cameraPivot, this, nameof(cameraPivot));
     }
@@ -70,27 +70,26 @@ public class PlayerLooker : MonoBehaviour
 
     void Awake()
     {
-        if (input == null) input = GetComponent<PlayerInputReader>();
+        if (input is null) input = GetComponent<PlayerInputReader>();
         RequireRef.Check(input, this, nameof(input));
 
-        if (cameraPivot == null) cameraPivot = transform.Find("CameraRig/CameraPivot");
+        if (cameraPivot is null) cameraPivot = transform.Find("CameraRig/CameraPivot");
         RequireRef.Check(cameraPivot, this, nameof(cameraPivot));
 
-        RequireRef.Check(playerRig, this, nameof(playerRig));
-
-        if (_lookAt == null) _lookAt = GetComponentInChildren<LookAtIK>();
-        RequireRef.Check(_lookAt, this, nameof(_lookAt));
-
-        if (_eyes == null) _eyes = _lookAt.solver.head.transform.Find("eyes");
-        RequireRef.Check(_eyes, this, nameof(_eyes));
-
-        _lookAt.solver.OnPostUpdate += PostIKFollow;
+        RequireRef.Check(armature, this, nameof(armature));
     }
 
     void Start()
     {
+        if (_lookAt is null) _lookAt = GetComponentInChildren<LookAtIK>();
+        if (_lookAt is null) _lookAt = GetComponent<LookAtIK>();
+        RequireRef.Check(_lookAt.solver.head.transform, this, "LookAtIK.solver.head");
+
+        if (_eyes is null) _eyes = _lookAt.solver.eyes[0].transform;
+        RequireRef.Check(_eyes, this, nameof(_eyes));
+
         // Create look target
-        if (_lookTarget == null)
+        if (_lookTarget is null)
         {
             _lookTarget = new GameObject("LookTarget").transform;
             _lookTarget.SetParent(transform, true);
@@ -108,6 +107,8 @@ public class PlayerLooker : MonoBehaviour
         // Initialize pitch
         _pitch = cameraPivot.localEulerAngles.x;
         if (_pitch > 180f) _pitch -= 360f;
+
+        _lookAt.solver.OnPostUpdate += PostIKFollow;
     }
 
     void Update()
@@ -117,13 +118,13 @@ public class PlayerLooker : MonoBehaviour
 
     void OnDestroy()
     {
-        if (_lookAt != null)
+        if (_lookAt is not null)
             _lookAt.solver.OnPostUpdate -= PostIKFollow;
     }
 
     private void HandleLook()
     {
-        if (input == null || cameraPivot == null) return;
+        if (input is null || cameraPivot is null) return;
 
         Vector2 look = input.Look;
         float yawDelta = look.x * lookSensitivity;

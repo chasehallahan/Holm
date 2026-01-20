@@ -6,8 +6,9 @@ Set in a historically inspired Norse world, players gather, fight, duel, and exp
 
 ## Current State
 - Early prototype / sandbox
-- Procedural, physics-driven melee combat
-- Multiplayer-focused experimentation
+- Velocity-based predictive procedural walking model
+- Mouse-bound inverse kinematic hand movement
+- Multiplayer experimentation
 
 ## Vision
 Hólm aims to blend:

@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "unity": {
+      "command": "unity",
+      "args": ["mcp", "--project-path", "C:\\Code\\Repos\\Personal\\Hólm"]
+    }
+  }
+}

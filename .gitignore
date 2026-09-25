@@ -97,3 +97,9 @@ InitTestScene*.unity*
 
 # Auto-generated scenes by play mode tests
 /[Aa]ssets/[Ii]nit[Tt]est[Ss]cene*.unity*
+
+# Claude Code personal overrides (shared config lives in CLAUDE.md / .claude/settings.json)
+.claude/settings.local.json
+CLAUDE.local.md
+# Regenerable docs URL index (see .claude/docs/unity-docs.md)
+.claude/docs/unity-6000.3-urls.txt

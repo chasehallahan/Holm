@@ -21,10 +21,10 @@ public class PlayerMover : MonoBehaviour
     [SerializeField] private float sprintMultiplier = 1.5f;
 
     [Tooltip("Acceleration rate when input is active (m/s²).")]
-    [SerializeField] private float acceleration = 15f;
+    [SerializeField] private float acceleration = 10f;
 
-    [Tooltip("Deceleration rate when input is released (m/s²).")]
-    [SerializeField] private float deceleration = 12f;
+    [Tooltip("Acceleration rate when input is released (m/s²).")]
+    [SerializeField] private float deceleration = 10f;
 
     [Header("Gravity / Jump")]
     [Tooltip("Gravity acceleration (negative = downward).")]
@@ -36,14 +36,11 @@ public class PlayerMover : MonoBehaviour
     // Runtime State
     private Vector3 _velocity;
     private Vector2 _currentHorizVel;
-    private bool _wantsMove;
+    private Vector2 _moveInput;
 
-    /// <summary>True when player is providing movement input.</summary>
-    public bool WantsMove => _wantsMove;
-
-    /// <summary>Current walk speed for external systems (e.g., stepper stride scaling).</summary>
     public float WalkSpeed => walkSpeed;
-
+    public Vector3 MoveInputDirection => _moveInput.normalized;
+    public bool WantsToMove => _moveInput.sqrMagnitude > 0.01f;
 
     void Awake()
     {
@@ -63,6 +60,8 @@ public class PlayerMover : MonoBehaviour
 
     void Update()
     {
+        _moveInput = Vector2.ClampMagnitude(input.Move, 1f);
+
         HandleMove();
         HandleGravityAndJump();
         controller.Move(_velocity * Time.deltaTime);
@@ -70,9 +69,6 @@ public class PlayerMover : MonoBehaviour
 
     private void HandleMove()
     {
-        Vector2 moveInput = Vector2.ClampMagnitude(input.Move, 1f);
-        _wantsMove = moveInput.sqrMagnitude > 0f;
-
         float targetSpeed = walkSpeed * (input.SprintHeld ? sprintMultiplier : 1f);
 
         // Project camera orientation to horizontal plane
@@ -83,7 +79,7 @@ public class PlayerMover : MonoBehaviour
         camFwd.Normalize();
         camRight.Normalize();
 
-        Vector3 moveDir = camFwd * moveInput.y + camRight * moveInput.x;
+        Vector3 moveDir = camFwd * _moveInput.y + camRight * _moveInput.x;
         Vector2 targetHorizVel = new Vector2(moveDir.x, moveDir.z) * targetSpeed;
 
         float accel = targetHorizVel.sqrMagnitude > 0.001f ? acceleration : deceleration;
@@ -93,7 +89,7 @@ public class PlayerMover : MonoBehaviour
         _velocity.z = _currentHorizVel.y;
 
         // Rotate player toward camera direction while moving
-        if (_wantsMove)
+        if (WantsToMove)
         {
             Quaternion targetRot = Quaternion.LookRotation(camFwd, Vector3.up);
             transform.rotation = Quaternion.Slerp(transform.rotation, targetRot, 10f * Time.deltaTime);

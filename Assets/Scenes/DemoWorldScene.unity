@@ -1430,7 +1430,7 @@ MonoBehaviour:
     FABRIKPass: 1
     rootNode: {fileID: 1173158777}
     spineStiffness: 0.5
-    pullBodyVertical: 0.5
+    pullBodyVertical: 0
     pullBodyHorizontal: 0
 --- !u!114 &466764368
 MonoBehaviour:
@@ -2558,10 +2558,12 @@ MonoBehaviour:
   stanceWidth: 0.1
   stanceSlouch: 0.1
   strideWidth: 0.1
-  strideLength: 0.4
-  stepTrigger: 0.16
-  strideDuration: 0.2
-  stepHeight: 0.24
+  strideLength: 0.6
+  stepTrigger: 0.24
+  earlyLandThreshold: 0.7
+  minStepDuration: 0.16
+  maxStepDuration: 0.3
+  walkStepHeight: 0.18
   stepHeightCurve:
     serializedVersion: 2
     m_Curve:
@@ -2604,8 +2606,9 @@ MonoBehaviour:
     m_PreInfinity: 2
     m_PostInfinity: 2
     m_RotationOrder: 4
-  correctiveSteppingThreshold: 0.05
-  lookAheadTime: 0.05
+  lookAheadTime: 0
+  correctiveSteppingThreshold: 0.01
+  correctiveFootSpeed: 1.2
   bodyDip: 0.04
   bodyDipCurve:
     serializedVersion: 2
@@ -2640,7 +2643,6 @@ MonoBehaviour:
     m_PreInfinity: 2
     m_PostInfinity: 2
     m_RotationOrder: 4
-  maxLeanAngle: 5
   bodyMotionSmoothing: 10
   maxAnklePitch: 30
   maxAnkleRoll: 20
@@ -2695,7 +2697,7 @@ MonoBehaviour:
   walkSpeed: 4
   sprintMultiplier: 1.5
   acceleration: 15
-  deceleration: 12
+  deceleration: 15
   gravity: -20
   jumpHeight: 1.2
 --- !u!114 &1818026957

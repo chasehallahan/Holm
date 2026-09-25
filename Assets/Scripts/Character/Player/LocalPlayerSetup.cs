@@ -1,57 +1,73 @@
 using UnityEngine;
 
+
 public class LocalPlayerSetup : MonoBehaviour
 {
-    [Header("Assign in Inspector")]
-
-    [Tooltip("Local-only cameras (CameraPivot, Camera, Cinemachine); disabled for remote players.")]
+    [Header("References")]
+    [Tooltip("Camera objects to enable for local player only (CameraRig, Cinemachine, etc).")]
     [SerializeField] private GameObject[] playerCameras;
 
-    [Tooltip("Full body mesh shown to other players; hidden for the local player.")]
+    [Tooltip("Full body mesh visible to remote players, hidden for local player.")]
     [SerializeField] private SkinnedMeshRenderer worldMesh;
 
-    [Tooltip("Headless/local body mesh shown only to the local player.")]
+    [Tooltip("First-person body mesh visible to local player only.")]
     [SerializeField] private SkinnedMeshRenderer localMesh;
 
-    [Tooltip("Scripts that should run only on the local player (camera, input, etc).")]
+    [Tooltip("Scripts that should only run on the local player (input, camera control, etc).")]
     [SerializeField] private MonoBehaviour[] localOnlyScripts;
 
-    [Header("Ownership (Temporary)")]
-    [Tooltip("TEMP local ownership flag; will replace with networking IsOwner/isLocalPlayer later.")]
+    [Header("Ownership")]
+    [Tooltip("Temporary ownership flag. Replace with networking IsOwner/IsLocalPlayer.")]
     [SerializeField] private bool isLocalPlayer = true;
+
+    // TODO: Remove debug flip before production
+    [Tooltip("Debug: Inverts mesh visibility for testing third-person view.")]
+    [SerializeField] private bool debugFlipMeshVisibility = true;
+
+
+    void Awake()
+    {
+        RequireRef.Check(worldMesh, this, nameof(worldMesh));
+        RequireRef.Check(localMesh, this, nameof(localMesh));
+    }
+
+#if UNITY_EDITOR
+    private void OnValidate()
+    {
+        RequireRef.Warn(worldMesh, this, nameof(worldMesh));
+        RequireRef.Warn(localMesh, this, nameof(localMesh));
+    }
+#endif
 
     void Start()
     {
-        if (playerCameras is null || worldMesh is null || localMesh is null || localOnlyScripts is null)
-        {
-            Debug.LogError("LocalPlayerSetup: One or more of your references is null. Remember to set them in the inspector for the Local Player Setup component.");
-        }
         ApplyLocalState(isLocalPlayer);
     }
 
     public void ApplyLocalState(bool local)
     {
-        // Visuals
-        if (worldMesh) worldMesh.enabled = local;  // TEMP: world mesh enabled for debug
-        if (localMesh) localMesh.enabled = !local; // TEMP: local mesh (headless) disabled for debug
+        // Mesh visibility (flipped when debug flag is set)
+        bool showWorld = debugFlipMeshVisibility ? local : !local;
+        bool showLocal = debugFlipMeshVisibility ? !local : local;
 
-        // Cameras
+        if (worldMesh) worldMesh.enabled = showWorld;
+        if (localMesh) localMesh.enabled = showLocal;
+
+        // Cameras: only active for local player
         if (playerCameras is not null)
         {
-            foreach (var c in playerCameras)
-            {
-                if (c) c.SetActive(local);
-            }
+            foreach (var cam in playerCameras)
+                if (cam) cam.SetActive(local);
         }
 
-        // Scripts that should run only for the owning client
+        // Local-only scripts
         if (localOnlyScripts is not null)
         {
-            foreach (var s in localOnlyScripts)
-                if (s) s.enabled = local;
+            foreach (var script in localOnlyScripts)
+                if (script) script.enabled = local;
         }
 
-        // Cursor (local only)
+        // Cursor lock for local player
         if (local)
         {
             Cursor.lockState = CursorLockMode.Locked;

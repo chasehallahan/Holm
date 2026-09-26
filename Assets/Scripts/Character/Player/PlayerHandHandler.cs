@@ -45,7 +45,9 @@ public class PlayerHandHandler : MonoBehaviour
     [SerializeField] private float fullSwingSpeed = 1000f;
     [Tooltip("Velocity response curve. 1 = linear; >1 = small flicks barely extend, only a real swing does.")]
     [SerializeField] private float extendCurve = 2f;
-    [Tooltip("How fast the reach eases BACK IN after a swing (extension itself snaps out instantly).")]
+    [Tooltip("How fast the reach ramps OUT during a swing. Higher = snappier punch (25 ~= 0.12s to full).")]
+    [SerializeField] private float extendAttack = 25f;
+    [Tooltip("How fast the reach eases BACK IN after a swing.")]
     [SerializeField] private float extendSmooth = 14f;
 
     [Header("Grip rotation")]
@@ -194,10 +196,8 @@ public class PlayerHandHandler : MonoBehaviour
         float speed = Aiming ? input.Look.magnitude / dt : 0f;
         float swing = Mathf.Pow(Mathf.Clamp01(speed / fullSwingSpeed), extendCurve);
         float extendTarget = swing * maxExtension;
-        if (extendTarget > _extend)
-            _extend = extendTarget; // a punch snaps out instantly...
-        else
-            _extend = Mathf.Lerp(_extend, extendTarget, 1f - Mathf.Exp(-extendSmooth * Time.deltaTime)); // ...and eases back in
+        float rate = extendTarget > _extend ? extendAttack : extendSmooth; // punch out fast, ease back in
+        _extend = Mathf.Lerp(_extend, extendTarget, 1f - Mathf.Exp(-rate * Time.deltaTime));
 
         // Horizontal swing DIRECTION drives the seesaw: which hand punches out vs chambers.
         float horiz = Aiming ? input.Look.x / dt : 0f;

@@ -30,8 +30,8 @@ FBBIK left/right hand effectors (position + rotation weights, target transforms)
    their shoulder anchor.
 3. **Swing extension:** mouse *speed in pixels/second* (framerate-independent) maps
    through `pow(speed/fullSwingSpeed, extendCurve)` to an extension `_extend` on top of
-   `baseReach`. Extension snaps out instantly with the swing and eases back in at
-   `extendSmooth`.
+   `baseReach`. Extension ramps out at `extendAttack` (fast) and eases back in at
+   `extendSmooth` (slower).
 4. **Seesaw:** horizontal swing direction sets `_lean` (−1..+1). The hand leading the
    swing gets full extension, the trailing hand chambers in at half strength, and a
    straight jab (no lean) extends both hands a quarter:
@@ -63,7 +63,8 @@ mostly drives the hands, the view only drifts with the swing.
 | `maxExtension` | 0.25 | Extra reach at full swing |
 | `fullSwingSpeed` | 1000 | Mouse speed (px/sec) for 100% extension |
 | `extendCurve` | 2 | >1 = flicks barely extend, real swings do |
-| `extendSmooth` | 14 | Ease-back rate after a swing (rise is instant) |
+| `extendAttack` | 25 | Ramp-out rate during a swing (25 ≈ 0.12s to full) |
+| `extendSmooth` | 14 | Ease-back rate after a swing |
 | `handRotationWeight` | 0 | 0 = natural hands (fists), 1 = point along reach (weapons) |
 | `gripEuler` | (0,0,0) | Wrist roll fine-tune, only matters when rotation weight > 0 |
 

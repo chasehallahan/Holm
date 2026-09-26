@@ -14,6 +14,9 @@ public class PlayerLooker : MonoBehaviour
     [Tooltip("Player rig containing FBBIK and LookAtIK components.")]
     [SerializeField] private GameObject playerRig;
 
+    [Tooltip("Optional. While this hand handler is aiming the weapon, camera look is frozen so the mouse drives the hand instead (Half Sword style). Auto-found on this object if left empty.")]
+    [SerializeField] private PlayerHandHandler handHandler;
+
     [Header("Look Sensitivity")]
     [Tooltip("Mouse/controller look sensitivity multiplier.")]
     [SerializeField] private float lookSensitivity = 0.2f;
@@ -25,6 +28,10 @@ public class PlayerLooker : MonoBehaviour
     [Tooltip("Maximum upward pitch angle from neutral.")]
     [Range(0f, 89f)]
     [SerializeField] private float maxLookUp = 70f;
+
+    [Tooltip("While aiming the weapon, how much the camera still follows the mouse. 0 = locked, 1 = full follow.")]
+    [Range(0f, 1f)]
+    [SerializeField] private float aimLookFactor = 0.25f;
 
     [Header("Body Rotation")]
     [Tooltip("Maximum yaw offset between view and body before body rotates to catch up.")]
@@ -78,6 +85,8 @@ public class PlayerLooker : MonoBehaviour
 
         RequireRef.Check(playerRig, this, nameof(playerRig));
 
+        if (handHandler == null) handHandler = GetComponent<PlayerHandHandler>();
+
         if (_lookAt == null) _lookAt = GetComponentInChildren<LookAtIK>();
         RequireRef.Check(_lookAt, this, nameof(_lookAt));
 
@@ -125,7 +134,10 @@ public class PlayerLooker : MonoBehaviour
     {
         if (input == null || cameraPivot == null) return;
 
+        // Half Sword: while aiming, the camera still follows the mouse but only partway, so the
+        // view drifts with your swing instead of locking dead.
         Vector2 look = input.Look;
+        if (handHandler != null && handHandler.Aiming) look *= aimLookFactor;
         float yawDelta = look.x * lookSensitivity;
         float pitchDelta = look.y * lookSensitivity;
 

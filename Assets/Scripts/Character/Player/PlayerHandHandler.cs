@@ -41,13 +41,11 @@ public class PlayerHandHandler : MonoBehaviour
     [SerializeField] private float baseReach = 0.30f;
     [Tooltip("How far past baseReach a full swing can push the hand (meters).")]
     [SerializeField] private float maxExtension = 0.25f;
-    [Tooltip("Mouse speed (pixels/SECOND) at which you reach FULL extension. Higher = you must swing faster/harder.")]
-    [SerializeField] private float fullSwingSpeed = 1000f;
+    [Tooltip("Mouse speed at which you reach FULL extension. Higher = you must swing faster/harder.")]
+    [SerializeField] private float fullExtendSpeed = 25f;
     [Tooltip("Velocity response curve. 1 = linear; >1 = small flicks barely extend, only a real swing does.")]
     [SerializeField] private float extendCurve = 2f;
-    [Tooltip("How fast the reach ramps OUT during a swing. Higher = snappier punch (25 ~= 0.12s to full).")]
-    [SerializeField] private float extendAttack = 25f;
-    [Tooltip("How fast the reach eases BACK IN after a swing.")]
+    [Tooltip("How fast the reach eases toward its target (lower = ramps out more slowly).")]
     [SerializeField] private float extendSmooth = 14f;
 
     [Header("Grip rotation")]
@@ -157,11 +155,9 @@ public class PlayerHandHandler : MonoBehaviour
                      + transform.right * _aim.x
                      + transform.up    * _aim.y).normalized;
 
-        // Seesaw: the hand leading the swing (lean toward its side) gets the full extension, the
-        // trailing hand chambers in at half strength, and a straight jab (no lean) extends both a
-        // quarter. Clamp between the chamber (minReach) and arm length.
-        float share = 0.5f + 0.5f * lean * arm.side; // 1 = this hand leads the swing, 0 = it trails
-        float reach = Mathf.Clamp(baseReach + _extend * (1.5f * share - 0.5f), minReach, _maxRadius);
+        // Seesaw: a right lean (lean > 0) extends the right hand (side +1) and pulls the left in
+        // (side -1); a left lean flips it. Clamp between the chamber (minReach) and arm length.
+        float reach = Mathf.Clamp(baseReach + _extend * lean * arm.side, minReach, _maxRadius);
         arm.drawReach = reach;
 
         Vector3 handPos = arm.anchor.position + dir * reach;
@@ -191,17 +187,13 @@ public class PlayerHandHandler : MonoBehaviour
         }
 
         // Overall extension grows with how fast the mouse is moving (a swing), then eases back down.
-        // Speed is pixels/second (delta / dt) so the feel is framerate-independent.
-        float dt = Mathf.Max(Time.deltaTime, 0.0001f);
-        float speed = Aiming ? input.Look.magnitude / dt : 0f;
-        float swing = Mathf.Pow(Mathf.Clamp01(speed / fullSwingSpeed), extendCurve);
-        float extendTarget = swing * maxExtension;
-        float rate = extendTarget > _extend ? extendAttack : extendSmooth; // punch out fast, ease back in
-        _extend = Mathf.Lerp(_extend, extendTarget, 1f - Mathf.Exp(-rate * Time.deltaTime));
+        float speed = Aiming ? input.Look.magnitude : 0f;
+        float swing = Mathf.Pow(Mathf.Clamp01(speed / fullExtendSpeed), extendCurve);
+        _extend = Mathf.Lerp(_extend, swing * maxExtension, 1f - Mathf.Exp(-extendSmooth * Time.deltaTime));
 
         // Horizontal swing DIRECTION drives the seesaw: which hand punches out vs chambers.
-        float horiz = Aiming ? input.Look.x / dt : 0f;
-        float leanTarget = Mathf.Clamp(horiz / fullSwingSpeed, -1f, 1f);
+        float horiz = Aiming ? input.Look.x : 0f;
+        float leanTarget = Mathf.Clamp(horiz / fullExtendSpeed, -1f, 1f);
         _lean = Mathf.Lerp(_lean, leanTarget, 1f - Mathf.Exp(-extendSmooth * Time.deltaTime));
     }
 

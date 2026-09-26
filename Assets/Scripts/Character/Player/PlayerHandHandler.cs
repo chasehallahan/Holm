@@ -41,10 +41,8 @@ public class PlayerHandHandler : MonoBehaviour
     [SerializeField] private float baseReach = 0.30f;
     [Tooltip("How far past baseReach a full swing can push the hand (meters).")]
     [SerializeField] private float maxExtension = 0.25f;
-    [Tooltip("Mouse speed at which you reach FULL extension. Higher = you must swing faster/harder.")]
-    [SerializeField] private float fullExtendSpeed = 25f;
-    [Tooltip("Velocity response curve. 1 = linear; >1 = small flicks barely extend, only a real swing does.")]
-    [SerializeField] private float extendCurve = 2f;
+    [Tooltip("Mouse speed (pixels/SECOND) at which you reach FULL extension.")]
+    [SerializeField] private float fullSwingSpeed = 1200f;
     [Tooltip("How fast the reach eases toward its target (lower = ramps out more slowly).")]
     [SerializeField] private float extendSmooth = 14f;
 
@@ -63,8 +61,7 @@ public class PlayerHandHandler : MonoBehaviour
     [SerializeField] private bool showReachSphere = true;
 
     private Vector2 _aim;    // accumulated sweep around the sphere (where on the surface)
-    private float _extend;   // current (smoothed) overall extension from swinging
-    private float _lean;     // -1 = swinging left, +1 = swinging right (drives the seesaw)
+    private float _extend;   // current (smoothed) extension from swinging, in meters
 
     private Arm _right;
     private Arm _left;
@@ -136,11 +133,11 @@ public class PlayerHandHandler : MonoBehaviour
     private void UpdateHands()
     {
         if (_right == null) return;
-        DriveArm(_right, _lean);
-        DriveArm(_left, _lean);
+        DriveArm(_right);
+        DriveArm(_left);
     }
 
-    private void DriveArm(Arm arm, float lean)
+    private void DriveArm(Arm arm)
     {
         if (arm.anchor == null || arm.target == null || arm.effector == null) return;
 
@@ -155,9 +152,9 @@ public class PlayerHandHandler : MonoBehaviour
                      + transform.right * _aim.x
                      + transform.up    * _aim.y).normalized;
 
-        // Seesaw: a right lean (lean > 0) extends the right hand (side +1) and pulls the left in
-        // (side -1); a left lean flips it. Clamp between the chamber (minReach) and arm length.
-        float reach = Mathf.Clamp(baseReach + _extend * lean * arm.side, minReach, _maxRadius);
+        // ponytail: both hands share one extension; per-hand seesaw/chambering waits for the
+        // weapon-target rework (docs/HandSystem.md), which owns that logic anyway.
+        float reach = Mathf.Clamp(baseReach + _extend, minReach, _maxRadius);
         arm.drawReach = reach;
 
         Vector3 handPos = arm.anchor.position + dir * reach;
@@ -186,15 +183,10 @@ public class PlayerHandHandler : MonoBehaviour
             _aim = Vector2.Lerp(_aim, Vector2.zero, 1f - Mathf.Exp(-raiseSpeed * Time.deltaTime));
         }
 
-        // Overall extension grows with how fast the mouse is moving (a swing), then eases back down.
-        float speed = Aiming ? input.Look.magnitude : 0f;
-        float swing = Mathf.Pow(Mathf.Clamp01(speed / fullExtendSpeed), extendCurve);
-        _extend = Mathf.Lerp(_extend, swing * maxExtension, 1f - Mathf.Exp(-extendSmooth * Time.deltaTime));
-
-        // Horizontal swing DIRECTION drives the seesaw: which hand punches out vs chambers.
-        float horiz = Aiming ? input.Look.x : 0f;
-        float leanTarget = Mathf.Clamp(horiz / fullExtendSpeed, -1f, 1f);
-        _lean = Mathf.Lerp(_lean, leanTarget, 1f - Mathf.Exp(-extendSmooth * Time.deltaTime));
+        // Extension = normalized mouse speed (px/sec, framerate-independent), smoothed. That's it.
+        float speed = Aiming ? input.Look.magnitude / Mathf.Max(Time.deltaTime, 0.0001f) : 0f;
+        float target = Mathf.Clamp01(speed / fullSwingSpeed) * maxExtension;
+        _extend = Mathf.Lerp(_extend, target, 1f - Mathf.Exp(-extendSmooth * Time.deltaTime));
     }
 
     private void OnDrawGizmos()

@@ -28,11 +28,15 @@ FBBIK left/right hand effectors (position + rotation weights, target transforms)
    `aimClamp`), shared by both hands. Each hand's direction = resting guard direction
    (mirrored X for the left) + sweep, normalized — the hands orbit a sphere around
    their shoulder anchor.
-3. **Swing extension:** mouse *speed* maps through `pow(speed/fullExtendSpeed, extendCurve)`
-   to an extension `_extend` on top of `baseReach`. Fast swing = full punch reach.
-4. **Seesaw:** horizontal mouse direction sets `_lean` (−1..+1). A right swing extends
-   the right hand and pulls the left in toward `minReach` (the chamber), and vice versa.
-   `reach = clamp(baseReach + _extend * lean * side, minReach, _maxRadius)`.
+3. **Swing extension:** mouse *speed in pixels/second* (framerate-independent) maps
+   through `pow(speed/fullSwingSpeed, extendCurve)` to an extension `_extend` on top of
+   `baseReach`. Extension snaps out instantly with the swing and eases back in at
+   `extendSmooth`.
+4. **Seesaw:** horizontal swing direction sets `_lean` (−1..+1). The hand leading the
+   swing gets full extension, the trailing hand chambers in at half strength, and a
+   straight jab (no lean) extends both hands a quarter:
+   `reach = clamp(baseReach + _extend * (1.5·share − 0.5), minReach, _maxRadius)` with
+   `share = 0.5 + 0.5·lean·side`.
 5. **Hand position:** `anchor.position + dir * reach` written to the effector target.
 6. **Hand rotation (mostly OFF today):** `LookRotation(dir) * gripCalib * gripEuler`.
    `gripCalib` is measured at startup so "pointing along the reach" doesn't twist the
@@ -57,9 +61,9 @@ mostly drives the hands, the view only drifts with the swing.
 | `aimClamp` | 0.8 | Max sweep from resting guard (keeps hands in front) |
 | `baseReach` | 0.30 | Reach with a still mouse |
 | `maxExtension` | 0.25 | Extra reach at full swing |
-| `fullExtendSpeed` | 25 | Mouse speed for 100% extension |
+| `fullSwingSpeed` | 1000 | Mouse speed (px/sec) for 100% extension |
 | `extendCurve` | 2 | >1 = flicks barely extend, real swings do |
-| `extendSmooth` | 14 | Ease rate of reach toward target |
+| `extendSmooth` | 14 | Ease-back rate after a swing (rise is instant) |
 | `handRotationWeight` | 0 | 0 = natural hands (fists), 1 = point along reach (weapons) |
 | `gripEuler` | (0,0,0) | Wrist roll fine-tune, only matters when rotation weight > 0 |
 

@@ -97,3 +97,13 @@ InitTestScene*.unity*
 
 # Auto-generated scenes by play mode tests
 /[Aa]ssets/[Ii]nit[Tt]est[Ss]cene*.unity*
+
+# Hólm additions
+# Accidental nested Unity project created at repo root
+/[Mm]y [Pp]roject/
+# Unity crash-recovery dumps
+/[Aa]ssets/_Recovery*
+# VS build artifacts leaked inside the FinalIK plugin
+/[Aa]ssets/Plugins/RootMotion/FinalIK/Tools/obj*
+# Per-user AI Assistant package prefs
+/ProjectSettings/Packages/com.unity.ai.assistant/

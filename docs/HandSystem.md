@@ -77,9 +77,42 @@ Available in [PlayerInputReader](../Assets/Scripts/Input/PlayerInputReader.cs):
 `Look`, `AttackHeld/Pressed`, `BlockHeld/Pressed` (added for this system, **not consumed yet**),
 plus Move/Sprint/Crouch/Jump/Interact for the rest of the character.
 
-## What's not built yet (the orientation half)
+## Weapon architecture (decided 2026-09-26, not built)
 
-Mouse currently controls **position only**. Open design: which channel rotates the hand
-targets. Leading candidate: `Block` held + mouse = orient instead of translate
-(pitch/roll), scroll = wrist roll. Also unowned: weapon grips (`Assets/Weapons/` is an
-empty folder), two-handed coupling, collision/physics response of the arms.
+Vocabulary rule: nothing is "driven" except the target; everything downstream **matches**
+its target, best-effort. Same relationship at every link — a goal and a follower that may
+fail to reach it.
+
+```
+mouse         → steers → WEAPON TARGET   kinematic pose, our own math, pure player
+                                         intent — nothing in the world can stop it
+weapon BODY   → tries to match target    Rigidbody, real mass, PD/velocity-matching
+                                         with a capped force ("motor power")
+hands         → try to match grip points IK targets = grip points on the weapon BODY,
+                on the body              FBBIK solves the arms
+```
+
+- **Weapon target** — analogous to an IK target. Mouse sweep/extension math (today's
+  per-hand logic) migrates here. The arm-reach clamp (`_maxRadius` sphere) applies to
+  the *target*, not the hands — that's the only place hand reach still matters while armed.
+- **Weapon body** — lag, momentum, parries, binds all emerge from the sim: an enemy
+  blade stops the body while the target keeps going. Two knobs carry the feel:
+  **tracking force cap** (weapon weight + future strength stat) and **max target↔body
+  separation** before give/snap-back.
+- **Hands** — a gripping hand has *zero* independent position logic; its IK target is
+  the grip point, position and rotation. Arms jolt on impact for free because they
+  follow the body, not the target. Two-handed = second grip point. An empty off-hand
+  keeps the current guard logic.
+- **Fists** = zero-length weapon, one target per hand — current PlayerHandHandler math
+  is the degenerate case and eventually shares the target code.
+- **Feel signals** — each link's target↔follower gap is a gameplay input: stamina
+  drain, camera shake, disarm threshold.
+
+Half Sword reference: full active-ragdoll, joint "motor powers" chase arm poses, weapon
+is a passive constrained body. Our stack is the same idea with the ragdoll cut out —
+motor power becomes the body's tracking force cap.
+
+Not designed yet: orientation input channel for the target (candidate: `Block` held +
+mouse = rotate instead of translate, scroll = wrist roll), two-handed reach clamp shape
+(cheap version: clamp mid-grip to the tighter shoulder sphere), weapon content
+(`Assets/Weapons/` is empty).

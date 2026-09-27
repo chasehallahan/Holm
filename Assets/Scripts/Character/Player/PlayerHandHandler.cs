@@ -25,9 +25,6 @@ public class PlayerHandHandler : MonoBehaviour
     [Tooltip("Max distance a hand can reach from the shoulder (kept below true arm length).")]
     [SerializeField] private float _maxRadius = .55f;
 
-    [Tooltip("Min distance a hand pulls in to when the OTHER hand is punching out (the chamber).")]
-    [SerializeField] private float minReach = 0.12f;
-
     [SerializeField] private float raiseSpeed = 8f; // how fast the hands raise/lower when you start/stop aiming
 
     [Header("Aim sweep (mouse orbits the hands around the shoulders)")]
@@ -152,13 +149,17 @@ public class PlayerHandHandler : MonoBehaviour
                      + transform.right * _aim.x
                      + transform.up    * _aim.y).normalized;
 
+        // Guard sits on the sphere; the punch extends from there TOWARD THE CROSSHAIR
+        // (aimPivot.forward carries camera pitch), clamped back onto the reach sphere.
         // ponytail: both hands share one extension; per-hand seesaw/chambering waits for the
         // weapon-target rework (docs/HandSystem.md), which owns that logic anyway.
-        float reach = Mathf.Clamp(baseReach + _extend, minReach, _maxRadius);
-        arm.drawReach = reach;
+        Vector3 punchDir = aimPivot != null ? aimPivot.forward : dir;
+        Vector3 offset = dir * baseReach + punchDir * _extend;
+        if (offset.magnitude > _maxRadius) offset = offset.normalized * _maxRadius;
+        arm.drawReach = offset.magnitude;
 
-        Vector3 handPos = arm.anchor.position + dir * reach;
-        Quaternion handRot = Quaternion.LookRotation(dir, transform.up) * arm.gripCalib * Quaternion.Euler(gripEuler);
+        Vector3 handPos = arm.anchor.position + offset;
+        Quaternion handRot = Quaternion.LookRotation(offset.normalized, transform.up) * arm.gripCalib * Quaternion.Euler(gripEuler);
 
         // Aiming -> blend IK weight up to 1; releasing -> down to 0 (default arm pose).
         float w = Aiming ? 1f : 0f;

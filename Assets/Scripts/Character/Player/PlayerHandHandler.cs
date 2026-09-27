@@ -42,6 +42,8 @@ public class PlayerHandHandler : MonoBehaviour
     [SerializeField] private float fullSwingSpeed = 1200f;
     [Tooltip("How fast the reach eases toward its target (lower = ramps out more slowly).")]
     [SerializeField] private float extendSmooth = 14f;
+    [Tooltip("How far to its OWN side of the crosshair a full punch lands (meters). Keeps fists shoulder-width instead of converging on one point.")]
+    [SerializeField] private float punchSpread = 0.15f;
 
     [Header("Grip rotation")]
     [Tooltip("How much the hand orientation is driven. 0 = hands follow the arms naturally (unarmed fists); 1 = hands point along the reach (for weapons).")]
@@ -161,9 +163,14 @@ public class PlayerHandHandler : MonoBehaviour
         // chambers back toward the body instead of punching too.
         // ponytail: chamber strength 0.5 inline; the weapon-target rework owns this logic later.
         Vector3 punchDir = aimPivot != null ? aimPivot.forward : dir;
+        Vector3 punchRight = aimPivot != null ? aimPivot.right : transform.right;
         float leadT = 0.5f + 0.5f * _lean * arm.side;                  // 1 = leads, 0 = trails
         float guardReach = baseReach - _extend * (1f - leadT) * 0.5f;  // trailing hand tucks in
-        Vector3 offset = dir * guardReach + punchDir * (_extend * leadT);
+        float extendThis = _extend * leadT;
+        // Each fist lands to its OWN side of the crosshair, like a fighter pivoting into the
+        // punch, instead of both darting at the same point.
+        Vector3 spread = punchRight * (arm.side * punchSpread * extendThis / Mathf.Max(maxExtension, 0.01f));
+        Vector3 offset = dir * guardReach + punchDir * extendThis + spread;
         if (offset.magnitude > _maxRadius) offset = offset.normalized * _maxRadius;
         arm.drawReach = offset.magnitude;
 

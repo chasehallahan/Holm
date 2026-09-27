@@ -62,7 +62,6 @@ public class PlayerHandHandler : MonoBehaviour
 
     private Vector2 _aim;    // accumulated sweep around the sphere (where on the surface)
     private float _extend;   // current (smoothed) extension from swinging, in meters
-    private float _lean;     // -1..+1 smoothed horizontal swing direction (body English only)
 
     private Arm _right;
     private Arm _left;
@@ -134,14 +133,6 @@ public class PlayerHandHandler : MonoBehaviour
     private void UpdateHands()
     {
         if (_right == null) return;
-
-        // Step 1 of body English: weight shifts forward with the punch. Additive positionOffset
-        // resets every frame and stacks on PlayerStepper's body target - no ownership fight.
-        // ponytail: 0.08m inline; promote to a field only if playtesting wants tuning
-        float frac = _extend / Mathf.Max(maxExtension, 0.01f);
-        Vector3 fwd = aimPivot != null ? aimPivot.forward : transform.forward;
-        _ikSolver.bodyEffector.positionOffset += fwd * (frac * 0.08f);
-
         DriveArm(_right);
         DriveArm(_left);
     }
@@ -196,11 +187,6 @@ public class PlayerHandHandler : MonoBehaviour
         float speed = Aiming ? input.Look.magnitude / Mathf.Max(Time.deltaTime, 0.0001f) : 0f;
         float target = Mathf.Clamp01(speed / fullSwingSpeed) * maxExtension;
         _extend = Mathf.Lerp(_extend, target, 1f - Mathf.Exp(-extendSmooth * Time.deltaTime));
-
-        // Horizontal swing direction, smoothed - drives body English (lean/twist), not the hands.
-        float horiz = Aiming ? input.Look.x / Mathf.Max(Time.deltaTime, 0.0001f) : 0f;
-        _lean = Mathf.Lerp(_lean, Mathf.Clamp(horiz / fullSwingSpeed, -1f, 1f),
-                           1f - Mathf.Exp(-extendSmooth * Time.deltaTime));
     }
 
     private void OnDrawGizmos()

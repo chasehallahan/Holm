@@ -187,6 +187,10 @@ public class PlayerHandHandler : MonoBehaviour
         float speed = Aiming ? input.Look.magnitude / Mathf.Max(Time.deltaTime, 0.0001f) : 0f;
         float target = Mathf.Clamp01(speed / fullSwingSpeed) * maxExtension;
         _extend = Mathf.Lerp(_extend, target, 1f - Mathf.Exp(-extendSmooth * Time.deltaTime));
+
+        // ponytail: temp diagnostics for punch feel - rides the showReachSphere debug flag, delete with it
+        if (showReachSphere && Aiming && Time.frameCount % 30 == 0)
+            Debug.Log($"[HandDbg] speed={speed:F0}px/s target={target:F3}m extend={_extend:F3}m reach={baseReach + _extend:F2}m");
     }
 
     private void OnDrawGizmos()

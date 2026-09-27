@@ -42,6 +42,10 @@ public class PlayerHandHandler : MonoBehaviour
     [SerializeField] private float fullSwingSpeed = 1200f;
     [Tooltip("How fast the reach eases toward its target (lower = ramps out more slowly).")]
     [SerializeField] private float extendSmooth = 14f;
+    [Tooltip("Mouse speed, as a FRACTION of fullSwingSpeed, that latches a committed punch.")]
+    [SerializeField] private float swingTrigger = 0.5f;
+    [Tooltip("Seconds for a latched punch to drive all the way out and retract (the whole committed motion).")]
+    [SerializeField] private float punchDuration = 0.35f;
     [Tooltip("How far to its OWN side of the crosshair a full punch lands (meters). Keeps fists shoulder-width instead of converging on one point.")]
     [SerializeField] private float punchSpread = 0.15f;
     [Tooltip("How far the lead shoulder drives forward (and the trail shoulder pulls back) at full punch (meters). The torso pivot.")]
@@ -64,9 +68,12 @@ public class PlayerHandHandler : MonoBehaviour
     [SerializeField] private bool showReachSphere = true;
 
     private Vector2 _aim;      // accumulated sweep around the sphere (where on the surface)
-    private float _extend;     // current (smoothed) extension from swinging, in meters
-    private float _lean;       // -1..+1 horizontal swing direction: which hand leads the punch
+    private float _extend;     // current extension from the active punch, in meters
+    private float _lean;       // -1..+1 horizontal swing direction: which hand leads the punch (frozen for a punch's duration)
     private Vector3 _punchFwd; // lagged camera forward: where the committed punch is going
+    private float _punchTime = -1f; // progress 0..1 of the active punch; <0 = idle, ready to throw
+    private float _punchPower;      // 0..1 reach of the active punch, captured from swing speed at launch
+    private bool _armed = true;     // re-arm gate: mouse must slow down between punches
 
     private Arm _right;
     private Arm _left;
@@ -214,29 +221,54 @@ public class PlayerHandHandler : MonoBehaviour
     {
         Aiming = forceAim || input.AttackHeld;
 
-        if (Aiming)
+        // The guard sweep only follows the mouse when no punch is in flight — mid-punch, the
+        // mouse's energy belongs to the punch, and the guard point must not slide under it.
+        if (Aiming && _punchTime < 0f)
         {
             _aim += input.Look * aimSensitivity;
             _aim = Vector2.ClampMagnitude(_aim, aimClamp);
         }
-        else
+        else if (!Aiming)
         {
             _aim = Vector2.Lerp(_aim, Vector2.zero, 1f - Mathf.Exp(-raiseSpeed * Time.deltaTime));
         }
 
-        // Extension = normalized mouse speed (px/sec, framerate-independent), smoothed. That's it.
+        // A punch is a committed event, not a live mouse-follow: a fast enough flick LATCHES a
+        // punch that drives out and auto-retracts on its own timer, ignoring the mouse mid-flight.
+        // That commitment is what reads as "I threw a punch" instead of "my hand tracks the cursor".
         float speed = Aiming ? input.Look.magnitude / Mathf.Max(Time.deltaTime, 0.0001f) : 0f;
-        float target = Mathf.Clamp01(speed / fullSwingSpeed) * maxExtension;
-        _extend = Mathf.Lerp(_extend, target, 1f - Mathf.Exp(-extendSmooth * Time.deltaTime));
 
-        // Horizontal swing direction picks the leading hand (right swipe = right hand punches).
-        float horiz = Aiming ? input.Look.x / Mathf.Max(Time.deltaTime, 0.0001f) : 0f;
-        _lean = Mathf.Lerp(_lean, Mathf.Clamp(horiz / fullSwingSpeed, -1f, 1f),
-                           1f - Mathf.Exp(-extendSmooth * Time.deltaTime));
+        // Re-arm gate: after a punch, the mouse must SLOW DOWN below half the trigger before the
+        // next one can latch. A deliberate flick punches; continuous steering doesn't machine-gun.
+        if (!_armed && _punchTime < 0f && speed < 0.5f * swingTrigger * fullSwingSpeed)
+            _armed = true;
+
+        if (_armed && _punchTime < 0f && Aiming && speed >= swingTrigger * fullSwingSpeed)
+        {
+            _armed = false;
+            _punchTime = 0f;                                       // latch a new punch
+            _punchPower = Mathf.Clamp01(speed / fullSwingSpeed);   // harder flick = fuller reach
+            float horiz = input.Look.x / Mathf.Max(Time.deltaTime, 0.0001f);
+            _lean = Mathf.Clamp(horiz / fullSwingSpeed, -1f, 1f);  // freeze which hand leads for the whole punch
+        }
+
+        if (_punchTime >= 0f)
+        {
+            _punchTime += Time.deltaTime / Mathf.Max(punchDuration, 0.01f);
+            // Asymmetric hump: t^0.75 skews the sin peak to ~40% in — snap out, longer retract.
+            float t = Mathf.Pow(Mathf.Clamp01(_punchTime), 0.75f);
+            _extend = _punchPower * maxExtension * Mathf.Sin(Mathf.PI * t);
+            if (_punchTime >= 1f) { _punchTime = -1f; _extend = 0f; }
+        }
+        else
+        {
+            _extend = 0f;
+            _lean = Mathf.Lerp(_lean, 0f, 1f - Mathf.Exp(-extendSmooth * Time.deltaTime)); // relax the pivot between punches
+        }
 
         // ponytail: temp diagnostics for punch feel - rides the showReachSphere debug flag, delete with it
         if (showReachSphere && Aiming && Time.frameCount % 30 == 0)
-            Debug.Log($"[HandDbg] speed={speed:F0}px/s target={target:F3}m extend={_extend:F3}m reach={baseReach + _extend:F2}m");
+            Debug.Log($"[HandDbg] speed={speed:F0}px/s punchT={_punchTime:F2} extend={_extend:F3}m power={_punchPower:F2}");
     }
 
     private void OnDrawGizmos()

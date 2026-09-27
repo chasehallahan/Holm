@@ -20,7 +20,7 @@ public class PlayerHandHandler : MonoBehaviour
     [SerializeField] private Transform leftGuardAnchor;
 
     [Tooltip("Offset from the shoulder, in PLAYER space: x=right, y=up, z=forward (meters). X is mirrored for the left hand.")]
-    [SerializeField] private Vector3 guardOffset = new Vector3(0.05f, -0.25f, 0.4f);
+    [SerializeField] private Vector3 guardOffset = new Vector3(0.5f, -0.25f, 0.4f);
 
     [Tooltip("Max distance a hand can reach from the shoulder (kept below true arm length).")]
     [SerializeField] private float _maxRadius = .55f;
@@ -59,6 +59,7 @@ public class PlayerHandHandler : MonoBehaviour
 
     private Vector2 _aim;    // accumulated sweep around the sphere (where on the surface)
     private float _extend;   // current (smoothed) extension from swinging, in meters
+    private float _lean;     // -1..+1 horizontal swing direction: which hand leads the punch
 
     private Arm _right;
     private Arm _left;
@@ -99,6 +100,12 @@ public class PlayerHandHandler : MonoBehaviour
         _left  = MakeArm(_ikSolver.leftHandEffector,  leftGuardAnchor, leftHandTarget, -1f);
 
         _ikSolver.OnPreUpdate += UpdateHands;
+
+        // Engage the body chain: let the arms straighten toward far targets instead of stopping
+        // slightly bent (reach), and let extended hands drag the torso into the punch (pullBody).
+        _ikSolver.GetChain(FullBodyBipedChain.RightArm).reach = 0.25f;
+        _ikSolver.GetChain(FullBodyBipedChain.LeftArm).reach = 0.25f;
+        _ikSolver.pullBodyHorizontal = 0.3f;
 
         // Lock & hide the cursor for gameplay (press Esc in the editor to free it).
         Cursor.lockState = CursorLockMode.Locked;
@@ -149,12 +156,14 @@ public class PlayerHandHandler : MonoBehaviour
                      + transform.right * _aim.x
                      + transform.up    * _aim.y).normalized;
 
-        // Guard sits on the sphere; the punch extends from there TOWARD THE CROSSHAIR
-        // (aimPivot.forward carries camera pitch), clamped back onto the reach sphere.
-        // ponytail: both hands share one extension; per-hand seesaw/chambering waits for the
-        // weapon-target rework (docs/HandSystem.md), which owns that logic anyway.
+        // Punch extends from the guard TOWARD THE CROSSHAIR (aimPivot.forward carries camera
+        // pitch). The hand leading the swing gets the full extension; the trailing hand
+        // chambers back toward the body instead of punching too.
+        // ponytail: chamber strength 0.5 inline; the weapon-target rework owns this logic later.
         Vector3 punchDir = aimPivot != null ? aimPivot.forward : dir;
-        Vector3 offset = dir * baseReach + punchDir * _extend;
+        float leadT = 0.5f + 0.5f * _lean * arm.side;                  // 1 = leads, 0 = trails
+        float guardReach = baseReach - _extend * (1f - leadT) * 0.5f;  // trailing hand tucks in
+        Vector3 offset = dir * guardReach + punchDir * (_extend * leadT);
         if (offset.magnitude > _maxRadius) offset = offset.normalized * _maxRadius;
         arm.drawReach = offset.magnitude;
 
@@ -188,6 +197,11 @@ public class PlayerHandHandler : MonoBehaviour
         float speed = Aiming ? input.Look.magnitude / Mathf.Max(Time.deltaTime, 0.0001f) : 0f;
         float target = Mathf.Clamp01(speed / fullSwingSpeed) * maxExtension;
         _extend = Mathf.Lerp(_extend, target, 1f - Mathf.Exp(-extendSmooth * Time.deltaTime));
+
+        // Horizontal swing direction picks the leading hand (right swipe = right hand punches).
+        float horiz = Aiming ? input.Look.x / Mathf.Max(Time.deltaTime, 0.0001f) : 0f;
+        _lean = Mathf.Lerp(_lean, Mathf.Clamp(horiz / fullSwingSpeed, -1f, 1f),
+                           1f - Mathf.Exp(-extendSmooth * Time.deltaTime));
 
         // ponytail: temp diagnostics for punch feel - rides the showReachSphere debug flag, delete with it
         if (showReachSphere && Aiming && Time.frameCount % 30 == 0)

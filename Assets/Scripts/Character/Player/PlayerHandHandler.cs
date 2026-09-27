@@ -44,6 +44,10 @@ public class PlayerHandHandler : MonoBehaviour
     [SerializeField] private float extendSmooth = 14f;
     [Tooltip("How far to its OWN side of the crosshair a full punch lands (meters). Keeps fists shoulder-width instead of converging on one point.")]
     [SerializeField] private float punchSpread = 0.15f;
+    [Tooltip("How far the lead shoulder drives forward (and the trail shoulder pulls back) at full punch (meters). The torso pivot.")]
+    [SerializeField] private float shoulderTwist = 0.12f;
+    [Tooltip("How far the hips shift toward the punch at full extension (meters). The weight transfer.")]
+    [SerializeField] private float bodyLean = 0.08f;
 
     [Header("Grip rotation")]
     [Tooltip("How much the hand orientation is driven. 0 = hands follow the arms naturally (unarmed fists); 1 = hands point along the reach (for weapons).")]
@@ -147,6 +151,16 @@ public class PlayerHandHandler : MonoBehaviour
         Vector3 camFwd = aimPivot != null ? aimPivot.forward : transform.forward;
         _punchFwd = _punchFwd == Vector3.zero ? camFwd
                   : Vector3.Slerp(_punchFwd, camFwd, 1f - Mathf.Exp(-4f * Time.deltaTime));
+
+        // Fighter mechanics, camera untouched: the lead shoulder drives forward while the trail
+        // shoulder pulls back (torso pivot) and the hips shift into the punch (weight transfer).
+        // Bone-level positionOffsets reset every frame and stack on PlayerStepper's body target,
+        // and nothing here rotates the player transform, so the camera never snaps.
+        float frac = _extend / Mathf.Max(maxExtension, 0.01f);
+        float twist = -_lean * frac * shoulderTwist; // pivot left = right shoulder forward
+        _ikSolver.rightShoulderEffector.positionOffset += _punchFwd * twist;
+        _ikSolver.leftShoulderEffector.positionOffset  -= _punchFwd * twist;
+        _ikSolver.bodyEffector.positionOffset += _punchFwd * (frac * bodyLean);
 
         DriveArm(_right);
         DriveArm(_left);

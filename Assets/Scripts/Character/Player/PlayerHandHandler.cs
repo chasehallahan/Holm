@@ -59,9 +59,10 @@ public class PlayerHandHandler : MonoBehaviour
     [Tooltip("Draw the reach spheres (translucent red) in the Scene view while playing.")]
     [SerializeField] private bool showReachSphere = true;
 
-    private Vector2 _aim;    // accumulated sweep around the sphere (where on the surface)
-    private float _extend;   // current (smoothed) extension from swinging, in meters
-    private float _lean;     // -1..+1 horizontal swing direction: which hand leads the punch
+    private Vector2 _aim;      // accumulated sweep around the sphere (where on the surface)
+    private float _extend;     // current (smoothed) extension from swinging, in meters
+    private float _lean;       // -1..+1 horizontal swing direction: which hand leads the punch
+    private Vector3 _punchFwd; // lagged camera forward: where the committed punch is going
 
     private Arm _right;
     private Arm _left;
@@ -139,6 +140,14 @@ public class PlayerHandHandler : MonoBehaviour
     private void UpdateHands()
     {
         if (_right == null) return;
+
+        // Punch direction lags the camera (~1/4s) so the swing's own inadvertent camera drift
+        // (aimLookFactor) doesn't drag a punch already in flight off its committed line.
+        // ponytail: 4 = commit lag rate, promote to a field if the feel needs tuning
+        Vector3 camFwd = aimPivot != null ? aimPivot.forward : transform.forward;
+        _punchFwd = _punchFwd == Vector3.zero ? camFwd
+                  : Vector3.Slerp(_punchFwd, camFwd, 1f - Mathf.Exp(-4f * Time.deltaTime));
+
         DriveArm(_right);
         DriveArm(_left);
     }
@@ -162,9 +171,10 @@ public class PlayerHandHandler : MonoBehaviour
         // pitch). The hand leading the swing gets the full extension; the trailing hand
         // chambers back toward the body instead of punching too.
         // ponytail: chamber strength 0.5 inline; the weapon-target rework owns this logic later.
-        Vector3 punchDir = aimPivot != null ? aimPivot.forward : dir;
-        Vector3 punchRight = aimPivot != null ? aimPivot.right : transform.right;
-        float leadT = 0.5f + 0.5f * _lean * arm.side;                  // 1 = leads, 0 = trails
+        Vector3 punchDir = _punchFwd;
+        Vector3 punchRight = Vector3.Cross(Vector3.up, punchDir).normalized;
+        // Pivot mechanics: swinging LEFT throws the RIGHT cross (and vice versa), hence -lean.
+        float leadT = 0.5f - 0.5f * _lean * arm.side;                  // 1 = leads, 0 = trails
         float guardReach = baseReach - _extend * (1f - leadT) * 0.5f;  // trailing hand tucks in
         float extendThis = _extend * leadT;
         // Each fist lands to its OWN side of the crosshair, like a fighter pivoting into the

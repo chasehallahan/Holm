@@ -22,8 +22,8 @@ public class PlayerHandHandler : MonoBehaviour
     [Tooltip("Offset from the shoulder, in PLAYER space: x=right, y=up, z=forward (meters). X is mirrored for the left hand.")]
     [SerializeField] private Vector3 guardOffset = new Vector3(0.05f, -0.25f, 0.4f);
 
-    [Tooltip("Max distance a hand can reach from the shoulder (kept below true arm length).")]
-    [SerializeField] private float _maxRadius = .55f;
+    [Tooltip("Max distance a hand target can sit from the shoulder. Beyond true arm length the IK just caps naturally.")]
+    [SerializeField] private float maxRadius = 1f;
 
     [Tooltip("Min distance a hand pulls in to when the OTHER hand is punching out (the chamber).")]
     [SerializeField] private float minReach = 0.12f;
@@ -62,6 +62,7 @@ public class PlayerHandHandler : MonoBehaviour
 
     private Vector2 _aim;    // accumulated sweep around the sphere (where on the surface)
     private float _extend;   // current (smoothed) extension from swinging, in meters
+    private float _lean;     // -1..+1 smoothed horizontal swing direction (body English only)
 
     private Arm _right;
     private Arm _left;
@@ -133,6 +134,14 @@ public class PlayerHandHandler : MonoBehaviour
     private void UpdateHands()
     {
         if (_right == null) return;
+
+        // Step 1 of body English: weight shifts forward with the punch. Additive positionOffset
+        // resets every frame and stacks on PlayerStepper's body target - no ownership fight.
+        // ponytail: 0.08m inline; promote to a field only if playtesting wants tuning
+        float frac = _extend / Mathf.Max(maxExtension, 0.01f);
+        Vector3 fwd = aimPivot != null ? aimPivot.forward : transform.forward;
+        _ikSolver.bodyEffector.positionOffset += fwd * (frac * 0.08f);
+
         DriveArm(_right);
         DriveArm(_left);
     }
@@ -154,7 +163,7 @@ public class PlayerHandHandler : MonoBehaviour
 
         // ponytail: both hands share one extension; per-hand seesaw/chambering waits for the
         // weapon-target rework (docs/HandSystem.md), which owns that logic anyway.
-        float reach = Mathf.Clamp(baseReach + _extend, minReach, _maxRadius);
+        float reach = Mathf.Clamp(baseReach + _extend, minReach, maxRadius);
         arm.drawReach = reach;
 
         Vector3 handPos = arm.anchor.position + dir * reach;
@@ -187,6 +196,11 @@ public class PlayerHandHandler : MonoBehaviour
         float speed = Aiming ? input.Look.magnitude / Mathf.Max(Time.deltaTime, 0.0001f) : 0f;
         float target = Mathf.Clamp01(speed / fullSwingSpeed) * maxExtension;
         _extend = Mathf.Lerp(_extend, target, 1f - Mathf.Exp(-extendSmooth * Time.deltaTime));
+
+        // Horizontal swing direction, smoothed - drives body English (lean/twist), not the hands.
+        float horiz = Aiming ? input.Look.x / Mathf.Max(Time.deltaTime, 0.0001f) : 0f;
+        _lean = Mathf.Lerp(_lean, Mathf.Clamp(horiz / fullSwingSpeed, -1f, 1f),
+                           1f - Mathf.Exp(-extendSmooth * Time.deltaTime));
     }
 
     private void OnDrawGizmos()

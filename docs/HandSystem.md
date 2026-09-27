@@ -28,11 +28,12 @@ FBBIK left/right hand effectors (position + rotation weights, target transforms)
    `aimClamp`), shared by both hands. Each hand's direction = resting guard direction
    (mirrored X for the left) + sweep, normalized — the hands orbit a sphere around
    their shoulder anchor.
-3. **Swing extension:** normalized mouse speed (px/sec, framerate-independent), smoothed:
-   `reach = clamp(baseReach + clamp01(speed/fullSwingSpeed)·maxExtension, minReach, _maxRadius)`.
-   Both hands share it — per-hand seesaw/chambering deliberately deleted; the weapon-target
-   rework owns that logic when it lands.
-5. **Hand position:** `anchor.position + dir * reach` written to the effector target.
+3. **Swing extension:** normalized mouse speed (px/sec, framerate-independent), smoothed
+   into `_extend` (0..maxExtension). Both hands share it — per-hand seesaw/chambering
+   deliberately deleted; the weapon-target rework owns that logic when it lands.
+5. **Hand position:** guard point on the sphere, then the punch extends toward the
+   crosshair: `offset = dir·baseReach + aimPivot.forward·_extend`, clamped to
+   `_maxRadius`; target = `anchor.position + offset`.
 6. **Hand rotation (mostly OFF today):** `LookRotation(dir) * gripCalib * gripEuler`.
    `gripCalib` is measured at startup so "pointing along the reach" doesn't twist the
    wrist. But `rotationWeight = positionWeight * handRotationWeight` and
@@ -50,7 +51,6 @@ mostly drives the hands, the view only drifts with the swing.
 |---|---|---|
 | `guardOffset` | (0.05, −0.25, 0.4) | Resting guard position relative to shoulder, player space; X mirrored for left hand |
 | `_maxRadius` | 0.55 | Hard cap on reach (keep below true arm length) |
-| `minReach` | 0.12 | Chamber distance when the other hand punches |
 | `raiseSpeed` | 8 | Raise/lower blend speed on aim start/stop |
 | `aimSensitivity` | 0.004 | Mouse delta → sweep speed |
 | `aimClamp` | 0.8 | Max sweep from resting guard (keeps hands in front) |

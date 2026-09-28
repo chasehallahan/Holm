@@ -21,22 +21,22 @@ Vocabulary rule: nothing is "driven" except the target; everything downstream MA
 3. **Hands** — IK targets = grip points on the weapon BODY. Gripping hand has zero
    independent logic; empty hands keep guard logic. Fists = zero-length weapon.
 
-## Hand system today (PlayerHandHandler)
+## Hand system today (PlayerHandHandler) — deliberately the SIMPLE baseline
+
+A richer version (committed punch lines, chambering, ballistic latched punches, custom
+torso offsets) was built and REVERTED on 2026-09-27 — it compounded into worse feel at
+every step. Do not reintroduce those mechanics without an explicit request, and change
+at most ONE feel variable per playtest.
 
 - Hold attack (or `forceAim`) raises fists to a guard on a per-shoulder sphere; mouse
   sweeps the guard (`_aim`, clamped).
-- Extension = mouse speed in px/sec vs `fullSwingSpeed`, smoothed (`extendSmooth`).
-- Pivot mechanics: swinging LEFT throws the RIGHT cross (`-_lean` in `leadT`); the
-  trailing hand chambers toward the body.
-- Punch flies along a committed line: `_punchFwd` lags the camera ~1/4s so the swing's
-  own camera drift (`aimLookFactor` in PlayerLooker) can't steer a punch in flight.
-- Each fist lands `punchSpread` to its OWN side of that line.
-- Body engagement: `shoulderTwist` / `bodyLean` FBBIK positionOffsets (additive, reset
-  each frame, stack on PlayerStepper's body target, never rotate the player transform —
-  the camera must never snap), plus solver `pullBodyHorizontal = 0.3` and arm chain
-  `reach = 0.25` set in Start.
-- Debug: `forceAim` defaults ON; `showReachSphere` draws reach gizmos and gates the
-  `[HandDbg]` console log (speed/target/extend/reach). Both are temporary.
+- Extension = mouse speed in px/sec vs `fullSwingSpeed`, smoothed (`extendSmooth`);
+  both hands share it. Reach = `baseReach + _extend`, clamped to `maxRadius` (1m).
+- Body English comes from FinalIK's own tools as scene components on the FBBIK object —
+  ShoulderRotator (shoulders rotate when hands pull far) and BodyTilt + two OffsetPose
+  children (lean into turns). Not from PlayerHandHandler code.
+- Debug: `forceAim` defaults ON; `showReachSphere` draws reach gizmos. `DebugCamToggle`:
+  press C (Crouch) for the third-person debug camera.
 
 ## Repo hygiene
 

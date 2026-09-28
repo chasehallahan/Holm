@@ -9,6 +9,9 @@ public class PlayerInputReader : MonoBehaviour
     public bool AttackHeld { get; private set; }
     public bool AttackPressed { get; private set; }
     public bool AttackReleased { get; private set; }
+    public bool BlockHeld { get; private set; }
+    public bool BlockPressed { get; private set; }
+    public bool BlockReleased { get; private set; }
     public bool InteractPressed { get; private set; }
     public bool CrouchHeld{ get; private set; }
     public bool CrouchPressed { get; private set; }
@@ -35,6 +38,8 @@ public class PlayerInputReader : MonoBehaviour
     {
         AttackPressed = false;
         AttackReleased = false;
+        BlockPressed = false;
+        BlockReleased = false;
         InteractPressed = false;
         CrouchPressed = false;
         CrouchReleased = false;
@@ -68,6 +73,19 @@ public class PlayerInputReader : MonoBehaviour
                 {
                     AttackHeld = false;
                     AttackReleased = true;
+                }
+                break;
+
+            case "Block":
+                if (ctx.started)
+                {
+                    BlockHeld = true;
+                    BlockPressed = true;
+                }
+                if (ctx.canceled)
+                {
+                    BlockHeld = false;
+                    BlockReleased = true;
                 }
                 break;
 

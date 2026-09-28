@@ -4,7 +4,13 @@ public class DebugCamToggle : MonoBehaviour
 {
     [SerializeField] private Camera firstPerson;
     [SerializeField] private Camera debugThirdPerson;
-    [SerializeField] private PlayerInputReader _input;
+    private PlayerInputReader _input;
+
+
+    void Awake()
+    {
+        if (_input is null) _input = GetComponentInParent<PlayerInputReader>();
+    }
 
     void Update()
     {

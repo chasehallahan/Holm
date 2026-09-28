@@ -12,6 +12,9 @@ public class PlayerHandHandler : MonoBehaviour
     [SerializeField] private Transform handTarget;      //RightHandTarget
     [SerializeField] private Transform leftHandTarget;  //LeftHandTarget (auto-found from RightHandTarget's sibling if empty)
 
+    [Tooltip("Jab/slap scrub target. While jabbing, the primary hand follows it. Auto-found if empty.")]
+    [SerializeField] private SwingTarget swingTarget;
+
     [Header("Guard pose")]
     [Tooltip("Right shoulder bone the guard hangs off (e.g. clavicle_r).")]
     [SerializeField] private Transform guardAnchor;
@@ -86,6 +89,7 @@ public class PlayerHandHandler : MonoBehaviour
         if (_fbbik is null) _fbbik = GetComponentInChildren<FullBodyBipedIK>();
         if (aimPivot == null) aimPivot = transform.Find("CameraRig/CameraPivot");
         _ikSolver = _fbbik.solver;
+        if (swingTarget == null) swingTarget = GetComponent<SwingTarget>();
     }
 
     void Start()
@@ -158,6 +162,12 @@ public class PlayerHandHandler : MonoBehaviour
         arm.drawReach = reach;
 
         Vector3 handPos = arm.anchor.position + dir * reach;
+        if (arm.side > 0f && swingTarget != null && swingTarget.Jabbing)
+        {
+            handPos = swingTarget.TargetPoint();
+            dir = (handPos - arm.anchor.position).normalized;
+        }
+
         Quaternion handRot = Quaternion.LookRotation(dir, transform.up) * arm.gripCalib * Quaternion.Euler(gripEuler);
 
         // Aiming -> blend IK weight up to 1; releasing -> down to 0 (default arm pose).
@@ -171,7 +181,7 @@ public class PlayerHandHandler : MonoBehaviour
 
     void Update()
     {
-        Aiming = forceAim || input.AttackHeld;
+        Aiming = forceAim || input.AttackHeld || (swingTarget != null && swingTarget.Jabbing);
 
         if (Aiming)
         {

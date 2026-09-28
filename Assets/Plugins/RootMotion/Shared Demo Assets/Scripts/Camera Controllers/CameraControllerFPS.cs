@@ -1,6 +1,10 @@
 using UnityEngine;
 using System.Collections;
 
+#if !ENABLE_LEGACY_INPUT_MANAGER
+using UnityEngine.InputSystem;
+#endif
+
 namespace RootMotion {
 
 	/// <summary>
@@ -22,10 +26,19 @@ namespace RootMotion {
 
 		public void LateUpdate() {
 			Cursor.lockState = CursorLockMode.Locked;
-
+ 
+#if ENABLE_LEGACY_INPUT_MANAGER
 			x += Input.GetAxis("Mouse X") * rotationSensitivity;
 			y = ClampAngle(y - Input.GetAxis("Mouse Y") * rotationSensitivity, yMinLimit, yMaxLimit);
-
+#else
+			Mouse mouse = Mouse.current;
+			if (mouse != null) {
+				Vector2 delta = mouse.delta.ReadValue();
+				x += delta.x * rotationSensitivity * 0.1f;
+				y = ClampAngle(y - delta.y * rotationSensitivity * 0.1f, yMinLimit, yMaxLimit);
+			}
+#endif
+ 
 			// Rotation
 			transform.rotation = Quaternion.AngleAxis(x, Vector3.up) * Quaternion.AngleAxis(y, Vector3.right);
 		}

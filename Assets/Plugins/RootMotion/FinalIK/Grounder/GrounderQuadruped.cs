@@ -412,6 +412,7 @@ namespace RootMotion.FinalIK {
 			// Only do this after the last IK solver has finished
 			solvedFeet ++;
 			if (solvedFeet < feet.Length) return;
+			solved = false;
 			
 			for (int i = 0; i < feet.Length; i++) {
 				feet[i].transform.rotation = Quaternion.Slerp(Quaternion.identity, feet[i].leg.rotationOffset, weight) * feet[i].rotation;

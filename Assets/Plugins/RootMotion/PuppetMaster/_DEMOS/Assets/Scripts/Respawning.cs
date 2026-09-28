@@ -2,6 +2,10 @@
 using System.Collections;
 using RootMotion.Dynamics;
 
+#if !ENABLE_LEGACY_INPUT_MANAGER
+using UnityEngine.InputSystem;
+#endif
+
 namespace RootMotion.Demos {
 
 	// Respawning BehaviourPuppet at a random position/rotation
@@ -23,16 +27,31 @@ namespace RootMotion.Demos {
 		}
 
 		void Update () {
-			if (Input.GetKeyDown(KeyCode.Alpha1)) puppet.puppetMaster.state = PuppetMaster.State.Alive;
-			if (Input.GetKeyDown(KeyCode.Alpha2)) puppet.puppetMaster.state = PuppetMaster.State.Dead;
-			if (Input.GetKeyDown(KeyCode.Alpha3)) puppet.puppetMaster.state = PuppetMaster.State.Frozen;
+#if ENABLE_LEGACY_INPUT_MANAGER
+			bool a1Pressed = Input.GetKeyDown(KeyCode.Alpha1);
+			bool a2Pressed = Input.GetKeyDown(KeyCode.Alpha2);
+            bool a3Pressed = Input.GetKeyDown(KeyCode.Alpha3);
+			bool pPressed = Input.GetKeyDown(KeyCode.P);
+			bool rPressed = Input.GetKeyDown(KeyCode.R);
+#else
+			Keyboard kb = Keyboard.current;
+			bool a1Pressed = kb != null && kb.digit1Key.wasPressedThisFrame;
+			bool a2Pressed = kb != null && kb.digit2Key.wasPressedThisFrame;
+            bool a3Pressed = kb != null && kb.digit3Key.wasPressedThisFrame;
+			bool pPressed = kb != null && kb.pKey.wasPressedThisFrame;
+			bool rPressed = kb != null && kb.rKey.wasPressedThisFrame;
+#endif
 
-			if (Input.GetKeyDown(KeyCode.P) && !isPooled) {
+			if (a1Pressed) puppet.puppetMaster.state = PuppetMaster.State.Alive;
+			if (a2Pressed) puppet.puppetMaster.state = PuppetMaster.State.Dead;
+			if (a3Pressed) puppet.puppetMaster.state = PuppetMaster.State.Frozen;
+
+			if (pPressed && !isPooled) {
 				Pool();
 			}
 
 			// Pool/Respawn from the pool
-			if (Input.GetKeyDown(KeyCode.R)) {
+			if (rPressed) {
                 // Respawn in random position/rotation
                 Vector2 rndCircle = UnityEngine.Random.insideUnitCircle * 2f;
                 

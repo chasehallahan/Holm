@@ -217,7 +217,7 @@ namespace RootMotion.FinalIK {
 			RootRotation();
 
 			// Offset mode
-			if (useAnimatedAimDirection) {
+			if (useAnimatedAimDirection && ik.solver.transform != null) {
 				ik.solver.axis = ik.solver.transform.InverseTransformVector(ik.transform.rotation * animatedAimDirection);
 			}
 		}

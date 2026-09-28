@@ -2,6 +2,10 @@
 using System.Collections;
 using RootMotion.Dynamics;
 
+#if !ENABLE_LEGACY_INPUT_MANAGER
+using UnityEngine.InputSystem;
+#endif
+
 namespace RootMotion.Demos {
 
 	// Code example for picking up/dropping props.
@@ -26,20 +30,31 @@ namespace RootMotion.Demos {
 		}
 
 		void Update () {
+#if ENABLE_LEGACY_INPUT_MANAGER
+			bool pPressed = Input.GetKeyDown(KeyCode.P);
+			bool xPressed = Input.GetKeyDown(KeyCode.X);
+            bool sPressed = Input.GetKeyDown(KeyCode.S);
+#else
+			Keyboard kb = Keyboard.current;
+			bool pPressed = kb != null && kb.pKey.wasPressedThisFrame;
+			bool xPressed = kb != null && kb.xKey.wasPressedThisFrame;
+            bool sPressed = kb != null && kb.sKey.wasPressedThisFrame;
+#endif
+
 			// Picking up
-			if (Input.GetKeyDown(KeyCode.P)) {
+			if (pPressed) {
 				// Makes the prop root drop any existing props and pick up the newly assigned one.
 				connectTo.currentProp = prop;
 			}
 
 			// Dropping
-			if (Input.GetKeyDown(KeyCode.X)) {
+			if (xPressed) {
 				// By setting the prop root's currentProp to null, the prop connected to it will be dropped.
 				connectTo.currentProp = null;
 			}
 
 			// Switching prop roots.
-			if (Input.GetKeyDown(KeyCode.S)) {
+			if (sPressed) {
 				// Switch hands
 				right = !right;
 

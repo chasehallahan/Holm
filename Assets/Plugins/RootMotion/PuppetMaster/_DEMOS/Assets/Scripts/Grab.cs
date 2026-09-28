@@ -2,6 +2,10 @@
 using System.Collections;
 using RootMotion.Dynamics;
 
+#if !ENABLE_LEGACY_INPUT_MANAGER
+using UnityEngine.InputSystem;
+#endif
+
 namespace RootMotion.Demos {
 
 	// Demonstrates grabbing other puppets.
@@ -89,8 +93,15 @@ namespace RootMotion.Demos {
 		void Update() {
 			if (!grabbed) return;
 
+#if ENABLE_LEGACY_INPUT_MANAGER
+			bool xPressed = Input.GetKeyDown(KeyCode.X);
+#else
+			Keyboard kb = Keyboard.current;
+			bool xPressed = kb != null && kb.xKey.wasPressedThisFrame;
+#endif
+
 			// Releasing the other puppet, restoring the initial state
-			if (Input.GetKeyDown(KeyCode.X)) {
+			if (xPressed) {
 				Destroy(joint);
 				r.mass /= massMlp;
 				puppetMaster.solverIterationCount /= solverIterationMlp;

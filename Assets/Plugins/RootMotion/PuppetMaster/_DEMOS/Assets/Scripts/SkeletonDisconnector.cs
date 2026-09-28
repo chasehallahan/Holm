@@ -2,6 +2,10 @@
 using System.Collections;
 using RootMotion.Dynamics;
 
+#if !ENABLE_LEGACY_INPUT_MANAGER
+using UnityEngine.InputSystem;
+#endif
+
 namespace RootMotion.Demos
 {
 
@@ -22,15 +26,35 @@ namespace RootMotion.Demos
         // Update is called once per frame
         void Update()
         {
+#if ENABLE_LEGACY_INPUT_MANAGER
+			bool rPressed = Input.GetKeyDown(KeyCode.R);
+			bool dPressed = Input.GetKeyDown(KeyCode.D);
+            bool pPressed = Input.GetKeyDown(KeyCode.P);
+            bool mPressed = Input.GetKeyDown(KeyCode.M);
+
+            bool clicked = Input.GetMouseButtonDown(0);
+            Vector2 mousePos = Input.mousePosition;
+#else
+			Keyboard kb = Keyboard.current;
+			bool rPressed = kb != null && kb.rKey.wasPressedThisFrame;
+			bool dPressed = kb != null && kb.dKey.wasPressedThisFrame;
+            bool pPressed = kb != null && kb.pKey.wasPressedThisFrame;
+			bool mPressed = kb != null && kb.mKey.wasPressedThisFrame;
+
+            Mouse mouse = Mouse.current;
+            bool clicked = mouse != null && mouse.leftButton.wasPressedThisFrame;
+            Vector2 mousePos = mouse != null ? mouse.position.ReadValue() : Vector2.zero;
+#endif
+
             // Switching modes
-            if (Input.GetKeyDown(KeyCode.M))
+            if (mPressed)
             {
                 if (disconnectMuscleMode == MuscleDisconnectMode.Sever) disconnectMuscleMode = MuscleDisconnectMode.Explode;
                 else disconnectMuscleMode = MuscleDisconnectMode.Sever;
             }
 
             // Pick up prop
-            if (Input.GetKeyDown(KeyCode.P))
+            if (pPressed)
             {
                 propMuscle.currentProp = prop;
 
@@ -39,15 +63,15 @@ namespace RootMotion.Demos
             }
 
             // Drop prop
-            if (Input.GetKeyDown(KeyCode.D))
+            if (dPressed)
             {
                 propMuscle.currentProp = null;
             }
 
             // Shooting
-            if (Input.GetMouseButtonDown(0))
+            if (clicked)
             {
-                Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
+                Ray ray = Camera.main.ScreenPointToRay(mousePos);
 
                 // Raycast to find a ragdoll collider
                 RaycastHit hit = new RaycastHit();
@@ -77,7 +101,7 @@ namespace RootMotion.Demos
             }
 
             // Reattach all the missing muscles
-            if (Input.GetKeyDown(KeyCode.R))
+            if (rPressed)
             {
                 puppet.puppetMaster.ReconnectMuscleRecursive(0);
                 skeleton.OnRebuild();

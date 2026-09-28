@@ -236,6 +236,11 @@ namespace RootMotion.Dynamics
         public UpdateDelegate OnWrite;
 
         /// <summary>
+        /// Called after teleporting
+        /// </summary>
+        public UpdateDelegate OnTeleported;
+
+        /// <summary>
         /// Called after each LateUpdate.
         /// </summary>
         public UpdateDelegate OnPostLateUpdate;
@@ -1201,50 +1206,31 @@ namespace RootMotion.Dynamics
             // Teleporting
             if (teleport)
             {
-                // version 1.4+, doing the math without changing the parent
-                Vector3 p = transform.position;
-
                 Quaternion targetDeltaRotation = QuaTools.FromToRotation(targetRoot.rotation, teleportRotation);
-                transform.rotation = targetDeltaRotation * transform.rotation;
-
-                Vector3 targetRootOffset = targetRoot.position - transform.position;
-                targetRoot.rotation = targetDeltaRotation * targetRoot.rotation;
-                targetRoot.position = transform.position + targetDeltaRotation * targetRootOffset;
-
                 Vector3 targetDeltaPosition = teleportPosition - targetRoot.position;
-                transform.position += targetDeltaPosition;
-                targetRoot.position += targetDeltaPosition;
 
+                Vector3 pivot = targetRoot.position;
 
-                /* before version 1.3:
-                GameObject c = new GameObject();
-                c.transform.position = transform.parent != null ? transform.parent.position : Vector3.zero;
-                c.transform.rotation = transform.parent != null ? transform.parent.rotation : Quaternion.identity;
+                foreach (Muscle m in muscles)
+                {
+                    Vector3 dir = m.rigidbody.position - pivot;
+                    dir = targetDeltaRotation * dir;
+                    Vector3 pos = pivot + targetDeltaPosition + dir;
+                    m.rigidbody.MovePosition(pos);
+                    m.rigidbody.MoveRotation(targetDeltaRotation * m.rigidbody.rotation);
 
-                var parent = transform.parent;
-                var targetParent = targetRoot.parent;
-                transform.parent = c.transform;
-                targetRoot.parent = c.transform;
-
-                Vector3 p = transform.parent.position;
-
-                Quaternion targetDeltaRotation = RootMotion.QuaTools.FromToRotation(targetRoot.rotation, teleportRotation);
-                transform.parent.rotation = targetDeltaRotation * transform.parent.rotation;
-
-                Vector3 targetDeltaPosition = teleportPosition - targetRoot.position;
-                transform.parent.position += targetDeltaPosition;
-
-                transform.parent = parent;
-                targetRoot.parent = targetParent;
-
-                Destroy(c);
-                */
-
-                muscles[0].targetMappedPosition = p + targetDeltaRotation * (muscles[0].targetMappedPosition - p) + targetDeltaPosition;
-                muscles[0].targetSampledPosition = p + targetDeltaRotation * (muscles[0].targetSampledPosition - p) + targetDeltaPosition;
+                    m.rigidbody.linearVelocity = targetDeltaRotation * m.rigidbody.linearVelocity;
+                    m.rigidbody.angularVelocity = targetDeltaRotation * m.rigidbody.angularVelocity;
+                }
+                
+                muscles[0].targetMappedPosition = pivot + targetDeltaRotation * (muscles[0].targetMappedPosition - pivot) + targetDeltaPosition;
+                muscles[0].targetSampledPosition = pivot + targetDeltaRotation * (muscles[0].targetSampledPosition - pivot) + targetDeltaPosition;
 
                 muscles[0].targetMappedRotation = targetDeltaRotation * muscles[0].targetMappedRotation;
                 muscles[0].targetSampledRotation = targetDeltaRotation * muscles[0].targetSampledRotation;
+
+                targetRoot.position = teleportPosition;
+                targetRoot.rotation = teleportRotation;
 
                 if (teleportMoveToTarget)
                 {
@@ -1259,7 +1245,58 @@ namespace RootMotion.Dynamics
                     m.ClearVelocities();
                 }
 
+                foreach (BehaviourBase behaviour in behaviours) behaviour.OnTeleport(targetDeltaRotation, targetDeltaPosition, pivot, teleportMoveToTarget);
+                if (OnTeleported != null) OnTeleported();
+
+                /*
+                Vector3 deltaPos = teleportPosition - targetRoot.position;
+                
+                foreach (Muscle m in muscles)
+                {
+                    m.rigidbody.MovePosition(m.rigidbody.position + deltaPos);
+                }
+
+                //transform.parent.position += deltaPos;
+                targetRoot.position += deltaPos;
+                */
+
+                /*  
+                // version 1.4+, doing the math without changing the parent
+                Vector3 p = transform.position;
+
+                Quaternion targetDeltaRotation = QuaTools.FromToRotation(targetRoot.rotation, teleportRotation);
+                transform.rotation = targetDeltaRotation * transform.rotation;
+
+                Vector3 targetRootOffset = targetRoot.position - transform.position;
+                targetRoot.rotation = targetDeltaRotation * targetRoot.rotation;
+                targetRoot.position = transform.position + targetDeltaRotation * targetRootOffset;
+
+                Vector3 targetDeltaPosition = teleportPosition - targetRoot.position;
+                transform.position += targetDeltaPosition;
+                targetRoot.position += targetDeltaPosition;
+
+                muscles[0].targetMappedPosition = p + targetDeltaRotation * (muscles[0].targetMappedPosition - p) + targetDeltaPosition;
+                muscles[0].targetSampledPosition = p + targetDeltaRotation * (muscles[0].targetSampledPosition - p) + targetDeltaPosition;
+
+                muscles[0].targetMappedRotation = targetDeltaRotation * muscles[0].targetMappedRotation;
+                muscles[0].targetSampledRotation = targetDeltaRotation * muscles[0].targetSampledRotation;
+                
+                if (teleportMoveToTarget)
+                {
+                    foreach (Muscle m in muscles)
+                    {
+                        m.MoveToTarget();
+                    }
+                }
+
+                foreach (Muscle m in muscles)
+                {
+                   m.ClearVelocities();
+                }
+                
                 foreach (BehaviourBase behaviour in behaviours) behaviour.OnTeleport(targetDeltaRotation, targetDeltaPosition, p, teleportMoveToTarget);
+                if (OnTeleported != null) OnTeleported();
+                */
 
                 teleport = false;
             }

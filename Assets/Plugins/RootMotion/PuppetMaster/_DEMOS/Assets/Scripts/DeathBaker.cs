@@ -2,6 +2,10 @@
 using System.Collections;
 using RootMotion.Dynamics;
 
+#if !ENABLE_LEGACY_INPUT_MANAGER
+using UnityEngine.InputSystem;
+#endif
+
 namespace RootMotion.Demos
 {
 
@@ -43,8 +47,17 @@ namespace RootMotion.Demos
 
         void Update()
         {
+#if ENABLE_LEGACY_INPUT_MANAGER
+			bool rPressed = Input.GetKeyDown(KeyCode.R);
+			bool dPressed = Input.GetKeyDown(KeyCode.D);
+#else
+			Keyboard kb = Keyboard.current;
+			bool rPressed = kb != null && kb.rKey.wasPressedThisFrame;
+			bool dPressed = kb != null && kb.dKey.wasPressedThisFrame;
+#endif
+
             // Starting the death procedure
-            if (Input.GetKeyDown(KeyCode.D) && !isDead)
+            if (dPressed && !isDead)
             {
                 // Play the death animation
                 animator.CrossFadeInFixedTime("Die Backwards", 0.2f);
@@ -63,7 +76,7 @@ namespace RootMotion.Demos
             }
 
             // Resetting the character and PuppetMaster weights
-            if (Input.GetKeyDown(KeyCode.R) && isDead)
+            if (rPressed && isDead)
             {
                 transform.position = defaultPosition;
                 transform.rotation = defaultRotation;

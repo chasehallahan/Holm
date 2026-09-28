@@ -82,6 +82,13 @@ namespace RootMotion.FinalIK
             /// </summary>
             public float shoulderPitchOffset = -30f;
 
+            [Tooltip("Tweak this value to adjust shoulder rotation around the abk (twist) axis.")]
+            [ShowIf("shoulderRotationWeight", 0f, Mathf.Infinity)]
+            /// <summary>
+            /// Tweak this value to adjust shoulder rotation around the bank (twist) axis.
+            /// </summary>
+            public float shoulderBankOffset;
+
             [LargeHeader("Bending")]
             [Tooltip("The elbow will be bent towards this Transform if 'Bend Goal Weight' > 0.")]
             /// <summary>
@@ -376,9 +383,18 @@ namespace RootMotion.FinalIK
                             //Debug.DrawRay(Vector3.up * 2f, pitchRotation * Vector3.forward, Color.green);
                             //Debug.DrawRay(Vector3.up * 2f, pitchRotation * Vector3.up, Color.green);
 
-                            // Rotate bones
                             Quaternion sR = pitchRotation * yawRotation;
+
+                            // Bank
+                            if (shoulderBankOffset != 0f)
+                            {
+                                Quaternion bankOffset = Quaternion.AngleAxis(shoulderBankOffset, workingSpace * Vector3.forward);
+                                sR = bankOffset * sR;
+                            }
+
                             if (shoulderRotationWeight * positionWeight < 1f) sR = Quaternion.Lerp(Quaternion.identity, sR, shoulderRotationWeight * positionWeight);
+
+                            // Rotate bones
                             VirtualBone.RotateBy(bones, sR);
 
                             Stretching();

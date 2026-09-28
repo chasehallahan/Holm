@@ -2,6 +2,10 @@
 using System.Collections;
 using RootMotion.FinalIK;
 
+#if !ENABLE_LEGACY_INPUT_MANAGER
+using UnityEngine.InputSystem;
+#endif
+
 namespace RootMotion.Demos {
 
 	/// <summary>
@@ -38,6 +42,13 @@ namespace RootMotion.Demos {
 			// If jumping or falling, do nothing
 			if (!character.onGround) return;
 
+			#if ENABLE_LEGACY_INPUT_MANAGER
+			bool ePressed = Input.GetKeyDown(KeyCode.E);
+#else
+			Keyboard kb = Keyboard.current;
+			bool ePressed = kb != null && kb.eKey.isPressed;
+#endif
+
 			// If an interaction is paused, resume on user input
 			if (interactionSystem.IsPaused() && interactionSystem.IsInSync()) {
 				GUILayout.Label("Press E to resume interaction");
@@ -61,7 +72,7 @@ namespace RootMotion.Demos {
 			// Its OK now to start the trigger
 			GUILayout.Label("Press E to start interaction");
 
-			if (Input.GetKey(KeyCode.E)) {
+			if (ePressed) {
 				interactionSystem.TriggerInteraction(closestTriggerIndex, false);
 			}
 		}

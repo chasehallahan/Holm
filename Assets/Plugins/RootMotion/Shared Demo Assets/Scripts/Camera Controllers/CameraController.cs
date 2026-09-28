@@ -1,6 +1,10 @@
 using UnityEngine;
 using System.Collections;
 
+#if !ENABLE_LEGACY_INPUT_MANAGER
+using UnityEngine.InputSystem;
+#endif
+
 namespace RootMotion {
 
 	/// <summary>
@@ -121,17 +125,46 @@ namespace RootMotion {
 			Cursor.lockState = lockCursor? CursorLockMode.Locked: CursorLockMode.None;
 			Cursor.visible = lockCursor? false: true;
 
+			#if ENABLE_LEGACY_INPUT_MANAGER
+ 
 			// Should we rotate the camera?
-			bool rotate = rotateAlways || (rotateOnLeftButton && Input.GetMouseButton(0)) || (rotateOnRightButton && Input.GetMouseButton(1)) || (rotateOnMiddleButton && Input.GetMouseButton(2));
-
-			// delta rotation
+			bool rotate = rotateAlways
+				|| (rotateOnLeftButton   && Input.GetMouseButton(0))
+				|| (rotateOnRightButton  && Input.GetMouseButton(1))
+				|| (rotateOnMiddleButton && Input.GetMouseButton(2));
+ 
+			// Delta rotation
 			if (rotate) {
 				x += Input.GetAxis("Mouse X") * rotationSensitivity;
 				y = ClampAngle(y - Input.GetAxis("Mouse Y") * rotationSensitivity, yMinLimit, yMaxLimit);
 			}
-
+ 
 			// Distance
 			distanceTarget = Mathf.Clamp(distanceTarget + zoomAdd, minDistance, maxDistance);
+ 
+#else // New Input System
+ 
+			Mouse mouse = Mouse.current;
+			if (mouse == null) return;
+ 
+			// Should we rotate the camera?
+			bool rotate = rotateAlways
+				|| (rotateOnLeftButton   && mouse.leftButton.isPressed)
+				|| (rotateOnRightButton  && mouse.rightButton.isPressed)
+				|| (rotateOnMiddleButton && mouse.middleButton.isPressed);
+ 
+			// Delta rotation — Mouse.current.delta is already in pixels/frame,
+			// matching the behaviour of Input.GetAxis("Mouse X/Y").
+			if (rotate) {
+				Vector2 mouseDelta = mouse.delta.ReadValue();
+				x += mouseDelta.x * rotationSensitivity * 0.1f;
+				y = ClampAngle(y - mouseDelta.y * rotationSensitivity * 0.1f, yMinLimit, yMaxLimit);
+			}
+ 
+			// Distance
+			distanceTarget = Mathf.Clamp(distanceTarget + zoomAdd, minDistance, maxDistance);
+ 
+#endif
 		}
 
 		// Update the camera transform
@@ -189,13 +222,21 @@ namespace RootMotion {
 		// Zoom input
 		private float zoomAdd {
 			get {
+#if ENABLE_LEGACY_INPUT_MANAGER
 				float scrollAxis = Input.GetAxis("Mouse ScrollWheel");
 				if (scrollAxis > 0) return -zoomSensitivity;
 				if (scrollAxis < 0) return zoomSensitivity;
 				return 0;
+#else
+				Mouse mouse = Mouse.current;
+				if (mouse == null) return 0;
+				float scroll = mouse.scroll.ReadValue().y;
+				if (scroll > 0) return -zoomSensitivity;
+				if (scroll < 0) return zoomSensitivity;
+				return 0;
+#endif
 			}
 		}
-
 		// Clamping Euler angles
 		private float ClampAngle (float angle, float min, float max) {
 			if (angle < -360) angle += 360;

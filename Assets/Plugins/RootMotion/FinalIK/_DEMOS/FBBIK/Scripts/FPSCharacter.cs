@@ -1,6 +1,10 @@
 using UnityEngine;
 using System.Collections;
 
+#if !ENABLE_LEGACY_INPUT_MANAGER
+using UnityEngine.InputSystem;
+#endif
+
 namespace RootMotion.Demos {
 
 	/// <summary>
@@ -21,12 +25,18 @@ namespace RootMotion.Demos {
 
 		void Update() {
 			// Aiming down the sight of the gun when RMB is down
-			FPSAiming.sightWeight = Mathf.SmoothDamp(FPSAiming.sightWeight, (Input.GetMouseButton(1)? 1f: 0f), ref sVel, 0.1f);
-
+#if ENABLE_LEGACY_INPUT_MANAGER
+			bool aimDown = Input.GetMouseButton(1);
+#else
+			Mouse mouse = Mouse.current;
+			bool aimDown = mouse != null && mouse.rightButton.isPressed;
+#endif
+			FPSAiming.sightWeight = Mathf.SmoothDamp(FPSAiming.sightWeight, (aimDown ? 1f : 0f), ref sVel, 0.1f);
+ 
 			// Set to full values to optimize IK
 			if (FPSAiming.sightWeight < 0.001f) FPSAiming.sightWeight = 0f;
 			if (FPSAiming.sightWeight > 0.999f) FPSAiming.sightWeight = 1f;
-
+ 
 			animator.SetFloat("Speed", walkSpeed);
 		}
 

@@ -119,9 +119,11 @@ Replaces sphere-radius extension entirely; the guard sphere survives only as the
 pose. Solves trajectory, commitment, AND orientation structurally.
 
 1. **Aim line** — a ray along the camera's z axis, always live (the crosshair).
-2. **Commit on attack:** at swing start, the point on that ray at the weapon's reach is
-   recorded **relative to the player/camera rig** — the swing's frozen destination.
-   Camera drift mid-swing cannot steer a committed swing.
+2. **Commit at acceleration onset:** the swing is detected by mouse acceleration rising;
+   the commit point is the ray from the last CALM frame (before the accel spike), at the
+   weapon's reach, recorded **relative to the player/camera rig**. The swipe that throws
+   the swing never inherits its own camera motion — the destination is where you were
+   aiming before your hand started moving.
 3. **Per-weapon data (unarmed included):** `minReach`/`maxReach`, `minArc`/`maxArc`.
 4. **Trajectory is an arc** from the current target pose to the committed point. The
    arc's bow plane comes from mouse velocity direction at commit — swipe right bows the

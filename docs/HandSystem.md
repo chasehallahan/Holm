@@ -143,3 +143,6 @@ pose. Solves trajectory, commitment, AND orientation structurally.
    into the new arc. Commitment survives because the reversal costs real wrist time; the
    future weapon body adds mass cost on top. Known tuning risk: a fast circular swipe
    never dips calm, so the original swing completes (a loop is not a feint).
+   **Build note: first implementation ships WITH a one-line lock (`if (_swinging) return;`
+   at the latch) — one swing at a time while validating arc math. Deleting that line is
+   what turns feints on. Do not design around the lock; it is scaffolding.**

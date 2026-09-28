@@ -136,3 +136,10 @@ pose. Solves trajectory, commitment, AND orientation structurally.
 7. **End state:** on reaching the committed point the target HOLDS there while mouse
    velocity stays high; when velocity decays it returns to the sphere-projection guard
    position it would occupy had no swing happened.
+8. **Redirects (feints) are not a special case.** An arc ALWAYS starts from wherever the
+   target is right now, and latching is allowed anytime the calm snapshot is fresh.
+   Reversing the mouse mid-swing forces a zero crossing — the dip refreshes the calm
+   snapshot, the opposite spike latches a new commit, and the punch pulls off its line
+   into the new arc. Commitment survives because the reversal costs real wrist time; the
+   future weapon body adds mass cost on top. Known tuning risk: a fast circular swipe
+   never dips calm, so the original swing completes (a loop is not a feint).

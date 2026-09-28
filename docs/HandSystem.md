@@ -113,36 +113,29 @@ motor power becomes the body's tracking force cap.
 Not designed yet: two-handed reach clamp shape (cheap version: clamp mid-grip to the
 tighter shoulder sphere), weapon content (`Assets/Weapons/` is empty).
 
-## Swing model (designed 2026-09-28, not built) — the weapon target's motion
+## Control model v2 (2026-09-28, partner-approved) — SCRUB, not launch
 
-Replaces sphere-radius extension entirely; the guard sphere survives only as the rest
-pose. Solves trajectory, commitment, AND orientation structurally.
+Supersedes the committed-arc model designed earlier the same day. Both attacks are
+POSITIONAL: the mouse scrubs the hand through a path directly. There are no launches,
+no commit points, no calm snapshots, no accel detection, and no single-swing lock —
+a feint is just scrubbing back the way you came.
 
-1. **Aim line** — a ray along the camera's z axis, always live (the crosshair).
-2. **Commit at acceleration onset:** the swing is detected by mouse acceleration rising;
-   the commit point is the ray from the last CALM frame (before the accel spike), at the
-   weapon's reach, recorded **relative to the player/camera rig**. The swipe that throws
-   the swing never inherits its own camera motion — the destination is where you were
-   aiming before your hand started moving.
-3. **Per-weapon data (unarmed included):** `minReach`/`maxReach`, `minArc`/`maxArc`.
-4. **Trajectory is an arc** from the current target pose to the committed point. The
-   arc's bow plane comes from mouse velocity direction at commit — swipe right bows the
-   arc rightward, swipe down is an overhead plane. Swing direction = swing type.
-5. **Rotation coupling:** distance traveled along the arc maps to rotational pose —
-   the fist/blade turns as a function of arc progress. This IS the orientation half of
-   the control scope; no separate orientation input channel needed.
-6. **Speed flattens the arc:** faster swings tend toward `minArc` (tight, direct);
-   lazy swings take the fuller arc. Power expresses as geometry.
-7. **End state:** on reaching the committed point the target HOLDS there while mouse
-   velocity stays high; when velocity decays it returns to the sphere-projection guard
-   position it would occupy had no swing happened.
-8. **Redirects (feints) are not a special case.** An arc ALWAYS starts from wherever the
-   target is right now, and latching is allowed anytime the calm snapshot is fresh.
-   Reversing the mouse mid-swing forces a zero crossing — the dip refreshes the calm
-   snapshot, the opposite spike latches a new commit, and the punch pulls off its line
-   into the new arc. Commitment survives because the reversal costs real wrist time; the
-   future weapon body adds mass cost on top. Known tuning risk: a fast circular swipe
-   never dips calm, so the original swing completes (a loop is not a feint).
-   **Build note: first implementation ships WITH a one-line lock (`if (_swinging) return;`
-   at the latch) — one swing at a time while validating arc math. Deleting that line is
-   what turns feints on. Do not design around the lock; it is scaffolding.**
+- **One attacking hand** (primary). The left hand never attacks — guard/block duty only.
+- **Mode comes from the button**, camera gets a damped look factor while either is held
+  (the `aimLookFactor` pattern — aiming stays easy, mouse energy goes to the hand).
+- **RMB — jab:** accumulated mouse Y scrubs extension between guard and the weapon's
+  reach along the aim line (push in, pull out). Mouse X steers the aim laterally, live,
+  even mid-jab. Damage later = mouse-Y velocity at contact (not built, just data shape).
+- **LMB — slap/swing:** accumulated mouse X scrubs the hand through a horizontal arc —
+  positive X toward fronthand, negative toward backhand. Mouse Y aims the arc's
+  elevation, live, during the swing.
+- **Rotation coupling survives:** hand rotation = function of scrub position along the
+  path (jab: knuckle orientation over extension; slap: fist/blade turns through the arc).
+  Still the whole orientation channel; no extra input.
+- **Per-weapon data survives (unarmed included):** `minReach`/`maxReach`,
+  `minArc`/`maxArc` — the path GEOMETRY is per-weapon; the player scrubs along it.
+- **Guard sphere = rest pose**; releasing a mode returns the hand to its live guard
+  position.
+
+Dead from v1, deliberately: acceleration-onset commit, ballistic traversal, the
+calm-ray snapshot, the single-swing training lock. Do not resurrect without a request.

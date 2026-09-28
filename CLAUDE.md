@@ -34,7 +34,9 @@ Hobby project: a multiplayer Viking melee sandbox. The goal is a game that's fun
   - For behavior that's hard to describe, suggest throwaway instrumentation: `Debug.DrawRay`, `Debug.Break()` plus frame stepping, temporary logs. These can go anywhere and get removed afterwards.
 - **Game feel is the product.** For feel changes, suggest exposing the value as a tunable (`[Range]`, `AnimationCurve`) and say what to watch for in Play Mode.
 - Flag hacks as hacks and name the idiomatic Unity way, even when the hack is fine for now.
-- Chase commits. Don't commit, push or branch unless asked.
+- **Git:** `main` is protected. Changes land only through PRs from feature branches: no direct pushes, force pushes or deletion, and nobody can bypass it.
+  - Chase commits. Don't commit, push, branch or open PRs unless asked.
+  - Other contributors' PR branches (e.g. MillerPatrick214's) belong to them. Review them, but don't push to them.
 
 ## Official docs are the source of truth
 

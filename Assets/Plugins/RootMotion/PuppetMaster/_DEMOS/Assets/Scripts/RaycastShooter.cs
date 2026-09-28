@@ -2,6 +2,10 @@
 using System.Collections;
 using RootMotion.Dynamics;
 
+#if !ENABLE_LEGACY_INPUT_MANAGER
+using UnityEngine.InputSystem;
+#endif
+
 namespace RootMotion.Demos {
 
 	public class RaycastShooter : MonoBehaviour {
@@ -13,8 +17,17 @@ namespace RootMotion.Demos {
 
         // Update is called once per frame
         void Update () {
-			if (Input.GetMouseButtonDown(0)) {
-				Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
+#if ENABLE_LEGACY_INPUT_MANAGER
+            bool clicked = Input.GetMouseButtonDown(0);
+            Vector2 mousePos = Input.mousePosition;
+#else
+            Mouse mouse = Mouse.current;
+            bool clicked = mouse != null && mouse.leftButton.wasPressedThisFrame;
+            Vector2 mousePos = mouse != null ? mouse.position.ReadValue() : Vector2.zero;
+#endif
+
+			if (clicked) {
+				Ray ray = Camera.main.ScreenPointToRay(mousePos);
 
 				// Raycast to find a ragdoll collider
 				RaycastHit hit = new RaycastHit();

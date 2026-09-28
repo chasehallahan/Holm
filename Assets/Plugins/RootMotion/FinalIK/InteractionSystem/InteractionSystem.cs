@@ -587,16 +587,32 @@ namespace RootMotion.FinalIK {
 			return closest;
 		}
 
-        /// <summary>
-        /// Store the default values to which the interaction effectors will be reset to after interactions have ended.
-        /// </summary>
-        public void StoreDefaults()
-        {
-            for (int i = 0; i < interactionEffectors.Length; i++)
-            {
-                interactionEffectors[i].StoreDefaults();
-            }
-        }
+		/// <summary>
+		/// Store the default values to which the interaction effectors will be reset to after interactions have ended.
+		/// </summary>
+		public void StoreDefaults()
+		{
+			for (int i = 0; i < interactionEffectors.Length; i++)
+			{
+				interactionEffectors[i].StoreDefaults();
+			}
+		}
+
+		/*
+		/// <summary>
+		/// Call this every frame when standing on a moving platform.
+		/// </summary>
+		public void AddPlatformMotion(Vector3 deltaPosition, Quaternion deltaRotation, Vector3 platformPivot)
+		{
+
+			for (int i = 0; i < interactionEffectors.Length; i++)
+			{
+				interactionEffectors[i].AddPlatformMotion(deltaPosition, deltaRotation, platformPivot);
+			}
+
+			//lookAt.AddPlatformMotion(deltaPosition, deltaRotation, platformPivot);
+		}
+		*/
 
 		/// <summary>
 		/// Gets the FullBodyBipedIK component.

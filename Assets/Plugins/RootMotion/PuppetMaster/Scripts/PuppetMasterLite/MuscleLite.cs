@@ -1,6 +1,4 @@
-﻿using System.Collections;
-using System.Collections.Generic;
-using UnityEngine;
+﻿using UnityEngine;
 
 namespace RootMotion.Dynamics
 {
@@ -39,6 +37,7 @@ namespace RootMotion.Dynamics
         private bool directTargetParent;
         private Vector3 targetVelocity;
         private Vector3 targetAnimatedCenterOfMass;
+        private Vector3 connectedBodyScale = Vector3.one;
         
         public void Initiate(MuscleLite[] colleagues)
         {
@@ -121,11 +120,13 @@ namespace RootMotion.Dynamics
             {
                 transform.localPosition = defaultPosition;
                 transform.localRotation = defaultRotation;
+                connectedBodyScale = Vector3.one;
             }
             else
             {
                 transform.position = joint.connectedBody.transform.TransformPoint(defaultPosition);
                 transform.rotation = joint.connectedBody.transform.rotation * defaultRotation;
+                connectedBodyScale = connectedBodyTarget.transform.lossyScale;
             }
 
             lastRotationDamper = -1f;
@@ -269,9 +270,13 @@ namespace RootMotion.Dynamics
             if (directTargetParent && !supportTranslationAnimation) return;
             
             Vector3 anchorUnscaled = joint.connectedAnchor = InverseTransformPointUnscaled(connectedBodyTarget.position, connectedBodyTarget.rotation * toParentSpace, target.position);
-            float uniformScaleF = 1f / connectedBodyTransform.lossyScale.x;
 
+#if UNITY_6000_OR_NEWER
+            joint.connectedAnchor = anchorUnscaled / connectedBodyScale.x;
+#else
+            float uniformScaleF = 1f / connectedBodyTransform.lossyScale.x;
             joint.connectedAnchor = anchorUnscaled * uniformScaleF;
+#endif
         }
 
         private Quaternion localRotation

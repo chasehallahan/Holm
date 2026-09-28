@@ -543,6 +543,67 @@ namespace RootMotion.Dynamics {
         }
 
         /// <summary>
+        /// Scales all rigidbodies to (1, 1, 1).
+        /// </summary>
+        [ContextMenu("Fix Muscle Scaling")]
+        public void FixMuscleScaling()
+        {
+            FlattenHierarchy();
+
+            foreach (Muscle m in muscles)
+            {
+                var r = m.joint.GetComponent<Rigidbody>();
+                float s = r.transform.localScale.x;
+
+                var children = new System.Collections.Generic.List<Transform>();
+
+                for (int i = 0; i < r.transform.childCount; i++)
+                {
+                    children.Add(r.transform.GetChild(i));
+                }
+                r.transform.DetachChildren();
+
+                r.transform.localScale = Vector3.one;
+
+                var colliders = r.GetComponentsInChildren<Collider>();
+                foreach (Collider c in colliders)
+                {
+                    if (c is SphereCollider)
+                    {
+                        var sphere = c as SphereCollider;
+                        sphere.radius *= s;
+                        sphere.center *= s;
+                    }
+                    else if (c is CapsuleCollider)
+                    {
+                        var capsule = c as CapsuleCollider;
+                        capsule.radius *= s;
+                        capsule.center *= s;
+                        capsule.height *= s;
+                    }
+                    else if (c is BoxCollider)
+                    {
+                        var box = c as BoxCollider;
+                        box.center *= s;
+                        box.size *= s;
+                    }
+                }
+
+                foreach (Transform child in children)
+                {
+                    child.transform.parent = r.transform;
+                }
+            }
+
+#if UNITY_EDITOR
+            if (!Application.isPlaying)
+            {
+                UnityEditor.SceneManagement.EditorSceneManager.MarkSceneDirty(UnityEditor.SceneManagement.EditorSceneManager.GetActiveScene());
+            }
+#endif
+        }
+
+        /// <summary>
         /// Are all the muscles parented to the PuppetMaster Transform?
         /// </summary>
         public bool HierarchyIsFlat()

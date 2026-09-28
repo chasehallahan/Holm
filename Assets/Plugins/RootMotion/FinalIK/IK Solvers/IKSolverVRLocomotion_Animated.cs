@@ -227,7 +227,7 @@ namespace RootMotion.FinalIK
                 offset -= externalDelta;
                 offset -= lastCorrection;
                 offset = V3Tools.Flatten(offset, rootUp);
-                
+
                 // Turning
                 Vector3 headForward = (solver.spine.IKRotationHead * solver.spine.anchorRelativeToHead) * Vector3.forward;
                 headForward.y = 0f;

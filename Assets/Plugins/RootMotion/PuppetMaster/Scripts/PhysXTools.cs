@@ -128,6 +128,7 @@ namespace RootMotion.Dynamics {
             rotationDelta.ToAngleAxis(out angle, out aV);
             if (float.IsNaN(aV.x)) return Vector3.zero;
             if (float.IsInfinity(aV.x)) return Vector3.zero;
+            if (deltaTime <= 0f) return Vector3.zero;
             angle *= Mathf.Deg2Rad;
             angle /= deltaTime;
             angle = QuaTools.ToBiPolar(angle);

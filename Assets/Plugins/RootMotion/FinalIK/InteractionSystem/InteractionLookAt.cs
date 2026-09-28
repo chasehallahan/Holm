@@ -41,7 +41,10 @@ namespace RootMotion.FinalIK {
 		private float weight; // Current weight
 		private bool firstFBBIKSolve; // Has the FBBIK already solved for this frame? In case it is solved more than once, for example when using the ShoulderRotator
 
-		public void OnFixTransforms() {
+		private Vector3 ikPosLocal;
+
+		public void OnFixTransforms()
+		{
 			if (ik == null) return;
 			if (ik.fixTransforms) ik.solver.FixTransforms();
 		}
@@ -62,7 +65,8 @@ namespace RootMotion.FinalIK {
 			ik.solver.IKPositionWeight = Interp.Float(weight, InterpolationMode.InOutQuintic);
 
 			// Set LookAtIK position
-			ik.solver.IKPosition = Vector3.Lerp(ik.solver.IKPosition, lookAtTarget.position, lerpSpeed * Time.deltaTime);
+			ikPosLocal = Vector3.Lerp(ikPosLocal, ik.transform.InverseTransformPoint(lookAtTarget.position), lerpSpeed * Time.deltaTime);
+			ik.solver.IKPosition = ik.transform.TransformPoint(ikPosLocal);
 
 			// Release the LookAtIK for other tasks once we're weighed out
 			if (weight <= 0f) lookAtTarget = null;

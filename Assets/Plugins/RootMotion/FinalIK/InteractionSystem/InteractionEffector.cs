@@ -38,6 +38,30 @@ namespace RootMotion.FinalIK {
 		private bool started;
 		private bool isSwitching;
 
+		/* All that is already in local space
+		public void AddPlatformMotion(Vector3 dPos, Quaternion dRot, Vector3 pivot)
+		{
+			AddPlatformMotion(ref pickUpPosition, dPos, dRot, pivot);
+			AddPlatformMotion(ref pausePositionRelative, dPos, dRot, pivot);
+			AddPlatformMotion(ref prevTargetPosition, dPos, dRot, pivot);
+
+			AddPlatformMotion(ref pickUpRotation, dRot);
+			AddPlatformMotion(ref pauseRotationRelative, dRot);
+			AddPlatformMotion(ref prevTargetRotation, dRot);
+			AddPlatformMotion(ref prevRotateBoneValue, dRot);
+		}
+
+		private void AddPlatformMotion(ref Vector3 pos, Vector3 dPos, Quaternion dRot, Vector3 pivot)
+		{
+			pos = pivot + dRot * (pos - pivot) + dPos;
+		}
+
+		private void AddPlatformMotion(ref Quaternion rot, Quaternion dRot)
+		{
+			rot = dRot * rot;
+		}
+		*/
+
 		// The custom constructor
 		public InteractionEffector (FullBodyBipedEffector effectorType) {
 			this.effectorType = effectorType;
@@ -78,8 +102,8 @@ namespace RootMotion.FinalIK {
 			if (interactionSystem == null) return;
 
 			// See which InteractionObject.WeightCurve.Types are used
-			prevTargetPosition = effector.position;
-			prevTargetRotation = effector.rotation;
+			prevTargetPosition = interactionSystem.transform.InverseTransformPoint(effector.position);
+			prevTargetRotation = Quaternion.Inverse(interactionSystem.transform.rotation) * effector.rotation;
 
 			prevPositionWeightUsed = interactionObject.CurveUsed(InteractionObject.WeightCurve.Type.PositionWeight);
 			prevRotationWeightUsed = interactionObject.CurveUsed(InteractionObject.WeightCurve.Type.RotationWeight);
@@ -127,12 +151,12 @@ namespace RootMotion.FinalIK {
 			if (prevPositionWeightUsed)
 			{
 				effector.positionWeight = Mathf.Lerp(prevPositionWeight, effector.positionWeight, switchTimer);
-				effector.position = Vector3.Lerp(prevTargetPosition, effector.position, switchTimer);
+				effector.position = Vector3.Lerp(interactionSystem.transform.TransformPoint(prevTargetPosition), effector.position, switchTimer);
 			}
 			if (prevRotationWeightUsed)
 			{
 				effector.rotationWeight = Mathf.Lerp(prevRotationWeight, effector.rotationWeight, switchTimer);
-				effector.rotation = Quaternion.Lerp(prevTargetRotation, effector.rotation, switchTimer);
+				effector.rotation = Quaternion.Lerp(prevTargetRotation, interactionSystem.transform.rotation * effector.rotation, switchTimer);
 			}
 
 			if (switchTimer >= 1f)

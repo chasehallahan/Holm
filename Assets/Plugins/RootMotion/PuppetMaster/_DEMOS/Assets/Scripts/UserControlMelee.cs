@@ -1,6 +1,11 @@
 ﻿using System.Collections;
 using UnityEngine;
 
+
+#if !ENABLE_LEGACY_INPUT_MANAGER
+using UnityEngine.InputSystem;
+#endif
+
 namespace RootMotion.Demos {
 	
 	/// <summary>
@@ -13,7 +18,13 @@ namespace RootMotion.Demos {
 		protected override void Update () {
 			base.Update();
 
-			state.actionIndex = Input.GetKey(hitKey)? 1: 0;
+#if ENABLE_LEGACY_INPUT_MANAGER
+			bool input = Input.GetKey(hitKey);
+#else
+			Keyboard kb = Keyboard.current;
+			bool input = kb != null && kb.eKey.isPressed;
+#endif
+			state.actionIndex = input? 1: 0;
 		}
 	}
 }

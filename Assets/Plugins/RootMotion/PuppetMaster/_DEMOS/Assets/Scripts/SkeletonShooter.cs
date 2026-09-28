@@ -2,6 +2,11 @@
 using System.Collections;
 using RootMotion.Dynamics;
 
+#if !ENABLE_LEGACY_INPUT_MANAGER
+using UnityEngine.InputSystem;
+#endif
+
+
 namespace RootMotion.Demos {
 	
 	public class SkeletonShooter : MonoBehaviour {
@@ -16,10 +21,22 @@ namespace RootMotion.Demos {
 
         // Update is called once per frame
 		void Update () {
-            //Debug.Log(puppetMaster.GetMuscle(head).state.muscleWeightMlp);
+            #if ENABLE_LEGACY_INPUT_MANAGER
+			bool rPressed = Input.GetKeyDown(KeyCode.R);
 
-			if (Input.GetMouseButtonDown(0)) {
-				Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
+            bool clicked = Input.GetMouseButtonDown(0);
+            Vector2 mousePos = Input.mousePosition;
+#else
+			Keyboard kb = Keyboard.current;
+			bool rPressed = kb != null && kb.rKey.wasPressedThisFrame;
+
+            Mouse mouse = Mouse.current;
+            bool clicked = mouse != null && mouse.leftButton.wasPressedThisFrame;
+            Vector2 mousePos = mouse != null ? mouse.position.ReadValue() : Vector2.zero;
+#endif
+
+			if (clicked) {
+				Ray ray = Camera.main.ScreenPointToRay(mousePos);
 				
 				// Raycast to find a ragdoll collider
 				RaycastHit hit = new RaycastHit();
@@ -49,7 +66,7 @@ namespace RootMotion.Demos {
 			}
 
 			// Reattach all the missing muscles
-			if (Input.GetKeyDown(KeyCode.R)) {
+			if (rPressed) {
 				puppetMaster.Rebuild();
 				skeleton.OnRebuild();
 			}

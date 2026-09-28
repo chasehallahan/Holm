@@ -4,15 +4,9 @@ labels:
 - InverseKinematics
 - IK
 - FullBodyIK
-AssetOrigin:
-  serializedVersion: 1
-  productId: 14290
-  packageName: Final IK
-  packageVersion: 2.4
-  assetPath: Assets/Plugins/RootMotion/FinalIK/IK Components/FullBodyBipedIK.cs
-  uploadId: 725641
+timeCreated: 1519038538
+licenseType: Store
 MonoImporter:
-  externalObjects: {}
   serializedVersion: 2
   defaultReferences: []
   executionOrder: 9999
@@ -20,3 +14,10 @@ MonoImporter:
   userData: 
   assetBundleName: 
   assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 14290
+  packageName: Final IK
+  packageVersion: 2.5
+  assetPath: Assets/Plugins/RootMotion/FinalIK/IK Components/FullBodyBipedIK.cs
+  uploadId: 897860

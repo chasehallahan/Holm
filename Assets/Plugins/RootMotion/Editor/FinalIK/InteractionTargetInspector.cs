@@ -17,6 +17,8 @@ namespace RootMotion.FinalIK {
 		private static Color pivotColor = new Color(0.2f, 0.5f, 1f);
 
 		void OnSceneGUI() {
+            if (Event.current.type != EventType.Repaint) return;
+
 			Handles.color = targetColor;
 
 			Inspector.SphereCap(0, script.transform.position, Quaternion.identity, size);

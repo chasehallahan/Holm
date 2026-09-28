@@ -60,7 +60,7 @@ namespace RootMotion.Demos {
                             Selection.activeGameObject = script.propMuscle.gameObject;
                         }
 
-                        UserControlAI[] userControls = (UserControlAI[])GameObject.FindObjectsOfType<UserControlAI>();
+                        UserControlAI[] userControls = (UserControlAI[])GameObject.FindObjectsByType<UserControlAI>(FindObjectsSortMode.None);
 						foreach (UserControlAI ai in userControls) {
 							if (ai.moveTarget == null) {
 								ai.moveTarget = script.transform.parent.GetComponentInChildren<PuppetMaster>().muscles[0].joint.transform;

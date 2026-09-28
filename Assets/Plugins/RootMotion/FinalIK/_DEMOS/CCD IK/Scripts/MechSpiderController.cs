@@ -15,7 +15,12 @@ namespace RootMotion.Demos {
 
 		public Vector3 inputVector {
 			get {
+				#if ENABLE_LEGACY_INPUT_MANAGER
 				return new Vector3(Input.GetAxis("Horizontal"), 0, Input.GetAxis("Vertical"));
+				#else
+				Vector2 move = UnityEngine.InputSystem.InputSystem.actions["Move"].ReadValue<Vector2>();
+				return new Vector3(move.x, 0f, move.y);
+				#endif
 			}
 		}
 

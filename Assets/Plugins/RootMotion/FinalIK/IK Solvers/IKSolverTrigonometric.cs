@@ -149,45 +149,49 @@ namespace RootMotion.FinalIK {
 
 			return true;
 		}
-		
+
 		/// <summary>
 		/// Bone type used by IKSolverTrigonometric.
 		/// </summary>
 		[System.Serializable]
-		public class TrigonometricBone: IKSolver.Bone {
-			
+		public class TrigonometricBone : IKSolver.Bone {
+
 			private Quaternion targetToLocalSpace;
 			private Vector3 defaultLocalBendNormal;
-			
+
 			#region Public methods
-			
+
 			/*
 			 * Initiates the bone, precalculates values.
 			 * */
 			public void Initiate(Vector3 childPosition, Vector3 bendNormal) {
 				// Get default target rotation that looks at child position with bendNormal as up
 				Quaternion defaultTargetRotation = Quaternion.LookRotation(childPosition - transform.position, bendNormal);
-				
+
 				// Covert default target rotation to local space
 				targetToLocalSpace = QuaTools.RotationToLocalSpace(transform.rotation, defaultTargetRotation);
-				
+
 				defaultLocalBendNormal = Quaternion.Inverse(transform.rotation) * bendNormal;
 			}
-			
+
 			/*
 			 * Calculates the rotation of this bone to targetPosition.
 			 * */
 			public Quaternion GetRotation(Vector3 direction, Vector3 bendNormal) {
 				return Quaternion.LookRotation(direction, bendNormal) * targetToLocalSpace;
 			}
-			
+
 			/*
 			 * Gets the bend normal from current bone rotation.
 			 * */
 			public Vector3 GetBendNormalFromCurrentRotation() {
 				return transform.rotation * defaultLocalBendNormal;
 			}
-			
+
+			public Vector3 GetBendNormalFromCurrentSolverRotation()
+			{
+				return solverRotation * defaultLocalBendNormal;
+			}
 			#endregion Public methods
 		}
 
@@ -296,7 +300,7 @@ namespace RootMotion.FinalIK {
 			}
 
 			OnUpdateVirtual();
-			
+
 			if (IKPositionWeight > 0) {
 
 				// Reinitiating the bones when the hierarchy is not direct. This allows for skipping animated bones in the hierarchy.
@@ -320,10 +324,10 @@ namespace RootMotion.FinalIK {
 				Vector3 bendDirection = Vector3.Lerp(bone2.transform.position - bone1.transform.position, GetBendDirection(weightIKPosition, currentBendNormal), IKPositionWeight);
 				
 				if (bendDirection == Vector3.zero) bendDirection = bone2.transform.position - bone1.transform.position;
-				
+
 				// Rotating bone1
 				bone1.transform.rotation = bone1.GetRotation(bendDirection, currentBendNormal);
-				
+
 				// Rotating bone 2
 				bone2.transform.rotation = bone2.GetRotation(weightIKPosition - bone2.transform.position, bone2.GetBendNormalFromCurrentRotation());
 			}

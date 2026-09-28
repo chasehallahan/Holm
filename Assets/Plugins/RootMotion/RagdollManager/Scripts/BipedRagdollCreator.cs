@@ -681,7 +681,7 @@ namespace RootMotion.Dynamics
         {
             Quaternion bone1DefaultLocalRotation = bone1.localRotation;
 
-            bone1.rotation = Quaternion.FromToRotation(bone1.rotation * (bone2.position - bone1.position), defaultWorldDirection) * bone1.rotation;
+            bone1.rotation = Quaternion.FromToRotation((bone2.position - bone1.position), defaultWorldDirection) * bone1.rotation;
 
             Vector3 bone1Dir = (bone2.position - bone1.position).normalized;
             Vector3 bone2Dir = (bone3.position - bone2.position).normalized;

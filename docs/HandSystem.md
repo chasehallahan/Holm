@@ -110,7 +110,27 @@ Half Sword reference: full active-ragdoll, joint "motor powers" chase arm poses,
 is a passive constrained body. Our stack is the same idea with the ragdoll cut out —
 motor power becomes the body's tracking force cap.
 
-Not designed yet: orientation input channel for the target (candidate: `Block` held +
-mouse = rotate instead of translate, scroll = wrist roll), two-handed reach clamp shape
-(cheap version: clamp mid-grip to the tighter shoulder sphere), weapon content
-(`Assets/Weapons/` is empty).
+Not designed yet: two-handed reach clamp shape (cheap version: clamp mid-grip to the
+tighter shoulder sphere), weapon content (`Assets/Weapons/` is empty).
+
+## Swing model (designed 2026-09-28, not built) — the weapon target's motion
+
+Replaces sphere-radius extension entirely; the guard sphere survives only as the rest
+pose. Solves trajectory, commitment, AND orientation structurally.
+
+1. **Aim line** — a ray along the camera's z axis, always live (the crosshair).
+2. **Commit on attack:** at swing start, the point on that ray at the weapon's reach is
+   recorded **relative to the player/camera rig** — the swing's frozen destination.
+   Camera drift mid-swing cannot steer a committed swing.
+3. **Per-weapon data (unarmed included):** `minReach`/`maxReach`, `minArc`/`maxArc`.
+4. **Trajectory is an arc** from the current target pose to the committed point. The
+   arc's bow plane comes from mouse velocity direction at commit — swipe right bows the
+   arc rightward, swipe down is an overhead plane. Swing direction = swing type.
+5. **Rotation coupling:** distance traveled along the arc maps to rotational pose —
+   the fist/blade turns as a function of arc progress. This IS the orientation half of
+   the control scope; no separate orientation input channel needed.
+6. **Speed flattens the arc:** faster swings tend toward `minArc` (tight, direct);
+   lazy swings take the fuller arc. Power expresses as geometry.
+7. **End state:** on reaching the committed point the target HOLDS there while mouse
+   velocity stays high; when velocity decays it returns to the sphere-projection guard
+   position it would occupy had no swing happened.

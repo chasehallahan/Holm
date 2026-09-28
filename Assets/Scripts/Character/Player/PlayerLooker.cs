@@ -17,6 +17,9 @@ public class PlayerLooker : MonoBehaviour
     [Tooltip("Optional. While this hand handler is aiming the weapon, camera look is frozen so the mouse drives the hand instead (Half Sword style). Auto-found on this object if left empty.")]
     [SerializeField] private PlayerHandHandler handHandler;
 
+    [Tooltip("While jabbing, mouse Y drives the jab scrub, so camera pitch locks. Auto-found on this object if left empty.")]
+    [SerializeField] private SwingTarget swingTarget;
+
     [Header("Look Sensitivity")]
     [Tooltip("Mouse/controller look sensitivity multiplier.")]
     [SerializeField] private float lookSensitivity = 0.2f;
@@ -86,6 +89,7 @@ public class PlayerLooker : MonoBehaviour
         RequireRef.Check(playerRig, this, nameof(playerRig));
 
         if (handHandler == null) handHandler = GetComponent<PlayerHandHandler>();
+        if (swingTarget == null) swingTarget = GetComponent<SwingTarget>();
 
         if (_lookAt == null) _lookAt = GetComponentInChildren<LookAtIK>();
         RequireRef.Check(_lookAt, this, nameof(_lookAt));
@@ -138,6 +142,7 @@ public class PlayerLooker : MonoBehaviour
         // view drifts with your swing instead of locking dead.
         Vector2 look = input.Look;
         if (handHandler != null && handHandler.Aiming) look *= aimLookFactor;
+        if (swingTarget != null && swingTarget.Jabbing) look.y = 0f; // jab owns the Y axis
         float yawDelta = look.x * lookSensitivity;
         float pitchDelta = look.y * lookSensitivity;
 

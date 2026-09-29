@@ -25,12 +25,6 @@ public class PlayerHandHandler : MonoBehaviour
     [Tooltip("Offset from the shoulder, in PLAYER space: x=right, y=up, z=forward (meters). X is mirrored for the left hand.")]
     [SerializeField] private Vector3 guardOffset = new Vector3(0.05f, -0.25f, 0.4f);
 
-    [Tooltip("Max distance a hand target can sit from the shoulder. Beyond true arm length the IK just caps naturally.")]
-    [SerializeField] private float maxRadius = 1f;
-
-    [Tooltip("Min distance a hand pulls in to when the OTHER hand is punching out (the chamber).")]
-    [SerializeField] private float minReach = 0.12f;
-
     [SerializeField] private float raiseSpeed = 8f; // how fast the hands raise/lower when you start/stop aiming
 
     [Header("Aim sweep (mouse orbits the hands around the shoulders)")]
@@ -39,15 +33,9 @@ public class PlayerHandHandler : MonoBehaviour
     [Tooltip("Max sweep away from the resting guard direction (keeps the hands in front).")]
     [SerializeField] private float aimClamp = 0.8f;
 
-    [Header("Swing extension (faster mouse = reach further out)")]
-    [Tooltip("Arm reach when the mouse is still (smaller = more tucked, leaving room to swing out).")]
+    [Header("Guard reach")]
+    [Tooltip("How far from the shoulder the hands rest in guard.")]
     [SerializeField] private float baseReach = 0.30f;
-    [Tooltip("How far past baseReach a full swing can push the hand (meters).")]
-    [SerializeField] private float maxExtension = 0.25f;
-    [Tooltip("Mouse speed (pixels/SECOND) at which you reach FULL extension.")]
-    [SerializeField] private float fullSwingSpeed = 1200f;
-    [Tooltip("How fast the reach eases toward its target (lower = ramps out more slowly).")]
-    [SerializeField] private float extendSmooth = 14f;
 
     [Header("Grip rotation")]
     [Tooltip("How much the hand orientation is driven. 0 = hands follow the arms naturally (unarmed fists); 1 = hands point along the reach (for weapons).")]
@@ -64,7 +52,6 @@ public class PlayerHandHandler : MonoBehaviour
     [SerializeField] private bool showReachSphere = true;
 
     private Vector2 _aim;    // accumulated sweep around the sphere (where on the surface)
-    private float _extend;   // current (smoothed) extension from swinging, in meters
 
     private Arm _right;
     private Arm _left;
@@ -92,9 +79,16 @@ public class PlayerHandHandler : MonoBehaviour
         if (swingTarget == null) swingTarget = GetComponent<SwingTarget>();
     }
 
+    void OnEnable()
+    {
+        if (_ikSolver != null) _ikSolver.OnPreUpdate += UpdateHands;
+    }
+
     void Start()
     {
         _ikSolver = _fbbik.solver;
+        _ikSolver.OnPreUpdate -= UpdateHands; // avoid double-subscribe from OnEnable racing Start
+        _ikSolver.OnPreUpdate += UpdateHands;
 
         // Auto-wire the left-side references from the right ones if not assigned in the Inspector.
         if (leftGuardAnchor == null && guardAnchor != null && guardAnchor.parent != null)
@@ -105,14 +99,12 @@ public class PlayerHandHandler : MonoBehaviour
         _right = MakeArm(_ikSolver.rightHandEffector, guardAnchor,     handTarget,     +1f);
         _left  = MakeArm(_ikSolver.leftHandEffector,  leftGuardAnchor, leftHandTarget, -1f);
 
-        _ikSolver.OnPreUpdate += UpdateHands;
-
         // Lock & hide the cursor for gameplay (press Esc in the editor to free it).
         Cursor.lockState = CursorLockMode.Locked;
         Cursor.visible = false;
     }
 
-    private void OnDestroy()
+    void OnDisable()
     {
         if (_ikSolver != null) _ikSolver.OnPreUpdate -= UpdateHands;
     }
@@ -156,15 +148,15 @@ public class PlayerHandHandler : MonoBehaviour
                      + transform.right * _aim.x
                      + transform.up    * _aim.y).normalized;
 
-        // ponytail: both hands share one extension; per-hand seesaw/chambering waits for the
-        // weapon-target rework (docs/HandSystem.md), which owns that logic anyway.
-        float reach = Mathf.Clamp(baseReach + _extend, minReach, maxRadius);
-        arm.drawReach = reach;
+        // Hands rest at guard; all extension now comes from SwingTarget's scrub (v2).
+        arm.drawReach = baseReach;
 
-        Vector3 handPos = arm.anchor.position + dir * reach;
+        Vector3 handPos = arm.anchor.position + dir * baseReach;
+
         if (arm.side > 0f && swingTarget != null && swingTarget.Jabbing)
         {
-            handPos = swingTarget.TargetPoint();
+            // Jab = blend from the LIVE guard position out to the crosshair far point.
+            handPos = Vector3.Lerp(handPos, swingTarget.TargetPoint(), swingTarget.Extend01);
             dir = (handPos - arm.anchor.position).normalized;
         }
 
@@ -181,22 +173,20 @@ public class PlayerHandHandler : MonoBehaviour
 
     void Update()
     {
-        Aiming = forceAim || input.AttackHeld || (swingTarget != null && swingTarget.Jabbing);
+        bool jabbing = input != null && input.BlockHeld;
+        Aiming = forceAim || input.AttackHeld || jabbing;
 
-        if (Aiming)
+        // Guard sweep follows the mouse only OUTSIDE a jab - mid-jab, the mouse belongs to the
+        // scrub and the guard must hold still under it.
+        if (Aiming && !jabbing)
         {
             _aim += input.Look * aimSensitivity;
             _aim = Vector2.ClampMagnitude(_aim, aimClamp);
         }
-        else
+        else if (!Aiming)
         {
             _aim = Vector2.Lerp(_aim, Vector2.zero, 1f - Mathf.Exp(-raiseSpeed * Time.deltaTime));
         }
-
-        // Extension = normalized mouse speed (px/sec, framerate-independent), smoothed. That's it.
-        float speed = Aiming ? input.Look.magnitude / Mathf.Max(Time.deltaTime, 0.0001f) : 0f;
-        float target = Mathf.Clamp01(speed / fullSwingSpeed) * maxExtension;
-        _extend = Mathf.Lerp(_extend, target, 1f - Mathf.Exp(-extendSmooth * Time.deltaTime));
     }
 
     private void OnDrawGizmos()

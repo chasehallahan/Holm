@@ -20,11 +20,6 @@ public class LocalPlayerSetup : MonoBehaviour
     [Tooltip("Temporary ownership flag. Replace with networking IsOwner/IsLocalPlayer.")]
     [SerializeField] private bool isLocalPlayer = true;
 
-    // TODO: Remove debug flip before production
-    [Tooltip("Debug: Inverts mesh visibility for testing third-person view.")]
-    [SerializeField] private bool debugFlipMeshVisibility = true;
-
-
     void Awake()
     {
         RequireRef.Check(worldMesh, this, nameof(worldMesh));
@@ -46,12 +41,10 @@ public class LocalPlayerSetup : MonoBehaviour
 
     public void ApplyLocalState(bool local)
     {
-        // Mesh visibility (flipped when debug flag is set)
-        bool showWorld = debugFlipMeshVisibility ? local : !local;
-        bool showLocal = debugFlipMeshVisibility ? !local : local;
-
-        if (worldMesh) worldMesh.enabled = showWorld;
-        if (localMesh) localMesh.enabled = showLocal;
+        // Single-player dev: world mesh stays visible so the debug third-person cam shows the
+        // body; localMesh waits for real first-person arms. Revisit with networking ownership.
+        if (worldMesh) worldMesh.enabled = true;
+        if (localMesh) localMesh.enabled = false;
 
         // Cameras: only active for local player
         if (playerCameras is not null)

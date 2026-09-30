@@ -380,14 +380,8 @@ public class PlayerStepper : MonoBehaviour
 
     private void UpdateIKTargets()
     {
-        UpdateBodyIK(_body);
         UpdateFootIK(_leftFoot);
         UpdateFootIK(_rightFoot);
-    }
-
-    private void UpdateBodyIK(Body body)
-    {
-        // TODO: Body bob/sway logic
     }
 
     private void UpdateFootIK(Foot foot)

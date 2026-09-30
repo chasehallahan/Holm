@@ -30,11 +30,11 @@ at most ONE feel variable per playtest.
 
 - Hold attack (or `forceAim`) raises fists to a guard on a per-shoulder sphere; mouse
   sweeps the guard (`_aim`, clamped).
-- Extension = mouse speed in px/sec vs `fullSwingSpeed`, smoothed (`extendSmooth`);
-  both hands share it. Reach = `baseReach + _extend`, clamped to `maxRadius` (1m).
-- Body English comes from FinalIK's own tools as scene components on the FBBIK object —
-  ShoulderRotator (shoulders rotate when hands pull far) and BodyTilt + two OffsetPose
-  children (lean into turns). Not from PlayerHandHandler code.
+- Extension (v2 scrub): RMB = jab; SwingTarget accumulates Extend01 from mouse Y and
+  PlayerHandHandler lerps the RIGHT hand from its live guard position to
+  SwingTarget.TargetPoint(). The left hand never attacks.
+- No body-English is wired yet: ShoulderRotator/BodyTilt were evaluated and NOT added
+  to the scene.
 - Debug: `forceAim` defaults ON; `showReachSphere` draws reach gizmos. `DebugCamToggle`:
   press C (Crouch) for the third-person debug camera.
 

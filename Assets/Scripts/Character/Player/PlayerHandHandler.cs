@@ -37,14 +37,6 @@ public class PlayerHandHandler : MonoBehaviour
     [Tooltip("How far from the shoulder the hands rest in guard.")]
     [SerializeField] private float baseReach = 0.30f;
 
-    [Header("Grip rotation")]
-    [Tooltip("How much the hand orientation is driven. 0 = hands follow the arms naturally (unarmed fists); 1 = hands point along the reach (for weapons).")]
-    [Range(0f, 1f)]
-    [SerializeField] private float handRotationWeight = 0f;
-
-    [Tooltip("Fine-tune wrist roll on top of the natural orientation (degrees). Only matters when handRotationWeight > 0.")]
-    [SerializeField] private Vector3 gripEuler = Vector3.zero;
-
     [Header("Debug")]
     [Tooltip("Force aiming ON so the hands stay raised - lets you position/tune the guard without holding LMB. Uncheck when done.")]
     [SerializeField] private bool forceAim = true;
@@ -56,7 +48,7 @@ public class PlayerHandHandler : MonoBehaviour
     private Arm _right;
     private Arm _left;
 
-    public bool Aiming { get; set; } = false; // whether the player is aiming, which raises the hands
+    public bool Aiming { get; private set; } = false; // whether the player is aiming, which raises the hands
 
     // Per-hand state. Both hands share the aim sweep and swing amount; they differ in which
     // shoulder they hang off (anchor) and how the extension is signed (the seesaw, via `side`).
@@ -66,7 +58,6 @@ public class PlayerHandHandler : MonoBehaviour
         public Transform anchor;
         public Transform target;
         public float side;        // +1 right, -1 left
-        public Quaternion gripCalib;
         public float drawReach;   // cached for the gizmo
     }
 
@@ -111,17 +102,13 @@ public class PlayerHandHandler : MonoBehaviour
 
     private Arm MakeArm(IKEffector eff, Transform anchor, Transform target, float side)
     {
-        var arm = new Arm { effector = eff, anchor = anchor, target = target, side = side, gripCalib = Quaternion.identity };
+        var arm = new Arm { effector = eff, anchor = anchor, target = target, side = side };
 
         if (eff != null && target != null && eff.bone != null && eff.bone.parent != null)
         {
             eff.target = target;
             eff.positionWeight = 1f;
-            // Calibrate the hand's natural "pointing axis" (out along the forearm) onto "forward",
-            // so aiming points the hand along the reach without twisting the wrist.
-            Vector3 pointAxisLocal = Quaternion.Inverse(eff.bone.rotation)
-                                   * (eff.bone.position - eff.bone.parent.position).normalized;
-            arm.gripCalib = Quaternion.FromToRotation(pointAxisLocal, Vector3.forward);
+            eff.rotationWeight = 0f; // scene serializes 0.2; fists follow the arms until scrub-coupled rotation lands
         }
         return arm;
     }
@@ -157,18 +144,14 @@ public class PlayerHandHandler : MonoBehaviour
         {
             // Jab = blend from the LIVE guard position out to the crosshair far point.
             handPos = Vector3.Lerp(handPos, swingTarget.TargetPoint(), swingTarget.Extend01);
-            dir = (handPos - arm.anchor.position).normalized;
         }
-
-        Quaternion handRot = Quaternion.LookRotation(dir, transform.up) * arm.gripCalib * Quaternion.Euler(gripEuler);
 
         // Aiming -> blend IK weight up to 1; releasing -> down to 0 (default arm pose).
         float w = Aiming ? 1f : 0f;
         float t = 1f - Mathf.Exp(-raiseSpeed * Time.deltaTime);
         arm.effector.positionWeight = Mathf.Lerp(arm.effector.positionWeight, w, t);
-        arm.effector.rotationWeight = arm.effector.positionWeight * handRotationWeight;
 
-        arm.target.SetPositionAndRotation(handPos, handRot);
+        arm.target.position = handPos;
     }
 
     void Update()

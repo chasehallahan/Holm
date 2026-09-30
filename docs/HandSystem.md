@@ -28,15 +28,7 @@ FBBIK left/right hand effectors (position + rotation weights, target transforms)
    `aimClamp`), shared by both hands. Each hand's direction = resting guard direction
    (mirrored X for the left) + sweep, normalized — the hands orbit a sphere around
    their shoulder anchor.
-3. **Swing extension:** normalized mouse speed (px/sec, framerate-independent), smoothed:
-   `reach = clamp(baseReach + clamp01(speed/fullSwingSpeed)·maxExtension, minReach, _maxRadius)`.
-   Both hands share it — per-hand seesaw/chambering deliberately deleted; the weapon-target
-   rework owns that logic when it lands.
 5. **Hand position:** `anchor.position + dir * reach` written to the effector target.
-6. **Hand rotation (mostly OFF today):** `LookRotation(dir) * gripCalib * gripEuler`.
-   `gripCalib` is measured at startup so "pointing along the reach" doesn't twist the
-   wrist. But `rotationWeight = positionWeight * handRotationWeight` and
-   `handRotationWeight` defaults to **0**, so hands currently follow the arms naturally.
 
 ## While aiming, the camera
 
@@ -49,17 +41,12 @@ mostly drives the hands, the view only drifts with the swing.
 | Field | Default | What it does |
 |---|---|---|
 | `guardOffset` | (0.05, −0.25, 0.4) | Resting guard position relative to shoulder, player space; X mirrored for left hand |
-| `_maxRadius` | 0.55 | Hard cap on reach (keep below true arm length) |
-| `minReach` | 0.12 | Chamber distance when the other hand punches |
 | `raiseSpeed` | 8 | Raise/lower blend speed on aim start/stop |
 | `aimSensitivity` | 0.004 | Mouse delta → sweep speed |
 | `aimClamp` | 0.8 | Max sweep from resting guard (keeps hands in front) |
 | `baseReach` | 0.30 | Reach with a still mouse |
-| `maxExtension` | 0.25 | Extra reach at full swing |
-| `fullSwingSpeed` | 1200 | Mouse speed (px/sec) for 100% extension |
-| `extendSmooth` | 14 | Ease rate of reach toward target |
-| `handRotationWeight` | 0 | 0 = natural hands (fists), 1 = point along reach (weapons) |
-| `gripEuler` | (0,0,0) | Wrist roll fine-tune, only matters when rotation weight > 0 |
+
+Table is partial mid-rework — v2 scrub knobs live on SwingTarget; full rewrite lands after the hook pass.
 
 References (`input`, `_fbbik`, `aimPivot`, targets, anchors) auto-find themselves in
 `Awake`/`Start` when left empty — left-side anchors/targets are derived from the right.
@@ -91,7 +78,7 @@ hands         → try to match grip points IK targets = grip points on the weapo
 ```
 
 - **Weapon target** — analogous to an IK target. Mouse sweep/extension math (today's
-  per-hand logic) migrates here. The arm-reach clamp (`_maxRadius` sphere) applies to
+  per-hand logic) migrates here. The arm-reach clamp applies to
   the *target*, not the hands — that's the only place hand reach still matters while armed.
 - **Weapon body** — lag, momentum, parries, binds all emerge from the sim: an enemy
   blade stops the body while the target keeps going. Two knobs carry the feel:

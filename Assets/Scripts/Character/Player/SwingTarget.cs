@@ -14,6 +14,9 @@ public class SwingTarget : MonoBehaviour
     [Tooltip("Mouse Y pixels to scrub from guard to full reach.")]
     [SerializeField] private float pixelsToFullReach = 400f;
 
+    [Tooltip("Mouse X pixels to scrub from guard to a full hook.")]
+    [SerializeField] private float pixelsToFullSwing = 500f;
+
     [Tooltip("Extension lost per second when the mouse goes still (spring back to guard).")]
     [SerializeField] private float idleDecay = 1.5f;
 
@@ -21,9 +24,14 @@ public class SwingTarget : MonoBehaviour
     [SerializeField] private float retractBoost = 2.5f;
 
     private float _extend01; // 0 = guard, 1 = full reach - THE scrub position
+
+    private float _swing01; // -1 backhand .. 0 guard .. +1 fronthand
+    public float Swing01 => _swing01;
     public float Extend01 => _extend01; // 0 = guard, 1 = far point
 
+
     public bool Jabbing { get; private set; }
+    public bool Swinging { get; private set; }
 
     void Awake()
     {
@@ -34,12 +42,15 @@ public class SwingTarget : MonoBehaviour
     void OnDisable()
     {
         Jabbing = false;
+        Swinging = false;
         _extend01 = 0f;
+        _swing01 = 0f;
     }
 
     void Update()
     {
         Jabbing = input.BlockHeld;
+        Swinging = input.AttackHeld;
 
         if (Jabbing)
         {
@@ -49,9 +60,17 @@ public class SwingTarget : MonoBehaviour
                 _extend01 -= idleDecay * Time.deltaTime;          // spring home only when not pushing
             _extend01 = Mathf.Clamp01(_extend01);
         }
+        else if (Swinging)
+        {
+            float push = input.Look.x / pixelsToFullSwing;
+            _swing01 = Mathf.Clamp(_swing01 + push, -1f, 1f);
+            if (Mathf.Approximately(push, 0f))
+                _swing01 = Mathf.MoveTowards(_swing01, 0f, idleDecay * Time.deltaTime); // spring back to guard only when idle
+        }
         else
         {
             _extend01 = Mathf.MoveTowards(_extend01, 0f, 4f * Time.deltaTime);
+            _swing01  = Mathf.MoveTowards(_swing01,  0f, 4f * Time.deltaTime);
         }
     }
 
@@ -63,7 +82,7 @@ public class SwingTarget : MonoBehaviour
     void OnDrawGizmos()
     {
         if (!Application.isPlaying) return;
-        Gizmos.color = Jabbing ? Color.red : Color.cyan;
+        Gizmos.color = Swinging ? Color.green : Jabbing ? Color.red : Color.cyan;
         Gizmos.DrawSphere(TargetPoint(), 0.05f);
     }
 }

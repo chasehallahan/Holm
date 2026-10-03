@@ -49,6 +49,8 @@ public class PlayerHandHandler : MonoBehaviour
 
     private Arm _right;
     private Arm _left;
+    private FBIKChain _rightArm;   // elbow bend goal rides this chain
+    private Transform _elbowGoal;
 
     public bool Aiming { get; private set; } = false; // whether the player is aiming, which raises the hands
 
@@ -91,6 +93,13 @@ public class PlayerHandHandler : MonoBehaviour
 
         _right = MakeArm(_ikSolver.rightHandEffector, guardAnchor,     handTarget,     +1f);
         _left  = MakeArm(_ikSolver.leftHandEffector,  leftGuardAnchor, leftHandTarget, -1f);
+
+        // Elbow bend goal for the hook: the constraint pulls the ELBOW toward this transform
+        // while the hand goes to its own target. Parented to the player so it travels with us.
+        _rightArm = _ikSolver.GetChain(FullBodyBipedChain.RightArm);
+        _elbowGoal = new GameObject("RightElbowGoal").transform;
+        _elbowGoal.SetParent(transform, false);
+        _rightArm.bendConstraint.bendGoal = _elbowGoal;
 
         // Lock & hide the cursor for gameplay (press Esc in the editor to free it).
         Cursor.lockState = CursorLockMode.Locked;
@@ -144,6 +153,8 @@ public class PlayerHandHandler : MonoBehaviour
 
         if (arm.side > 0f && swingTarget != null)
         {
+            _rightArm.bendConstraint.weight = 0f; // natural elbow unless a hook says otherwise
+
             if (swingTarget.Extend01 > 0f)
             {
                 // Jab = blend from the LIVE guard position out to the crosshair far point.
@@ -160,11 +171,25 @@ public class PlayerHandHandler : MonoBehaviour
                 Vector3 far = swingTarget.TargetPoint();
                 Vector3 mid = Vector3.Lerp(handPos, far, 0.5f) + aimPivot.right * (hookBow * Mathf.Sign(s));
                 handPos = Vector3.Lerp(Vector3.Lerp(handPos, mid, p), Vector3.Lerp(mid, far, p), p);
+
+                // A hook is an ELBOW event: flare it to the swing's side near shoulder height
+                // so the forearm sweeps instead of spearing. Weight rides the swing progress.
+                // ponytail: constants inline; knobs only if tuning demands them
+                _elbowGoal.position = arm.anchor.position
+                                    + aimPivot.right * (0.55f * Mathf.Sign(s))
+                                    + Vector3.up * 0.05f;
+                _rightArm.bendConstraint.weight = p;
             }
         }
 
         // Aiming -> blend IK weight up to 1; releasing -> down to 0 (default arm pose).
         float w = Aiming ? 1f : 0f;
+        // Unpin the LEFT hand while the right punches: FBBIK drags the body into the punch
+        // (pre-solve guard math can't see that drag), and a pinned left fist stays nailed to
+        // its pre-punch world spot. Unpinned, it rides the body like a real guard.
+        if (arm.side < 0f && swingTarget != null &&
+            (swingTarget.Extend01 > 0f || Mathf.Abs(swingTarget.Swing01) > 0.0001f))
+            w = 0f;
         float t = 1f - Mathf.Exp(-raiseSpeed * Time.deltaTime);
         arm.effector.positionWeight = Mathf.Lerp(arm.effector.positionWeight, w, t);
 

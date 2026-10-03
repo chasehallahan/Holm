@@ -1,4 +1,5 @@
 using RootMotion.FinalIK;
+using UnityEditor.UIElements;
 using UnityEngine;
 
 public class PlayerHandHandler : MonoBehaviour
@@ -11,6 +12,7 @@ public class PlayerHandHandler : MonoBehaviour
     [SerializeField] private Transform aimPivot;        //CameraRig/CameraPivot
     [SerializeField] private Transform handTarget;      //RightHandTarget
     [SerializeField] private Transform leftHandTarget;  //LeftHandTarget (auto-found from RightHandTarget's sibling if empty)
+    
 
     [Tooltip("Jab/slap scrub target. While jabbing, the primary hand follows it. Auto-found if empty.")]
     [SerializeField] private SwingTarget swingTarget;
@@ -140,10 +142,18 @@ public class PlayerHandHandler : MonoBehaviour
 
         Vector3 handPos = arm.anchor.position + dir * baseReach;
 
-        if (arm.side > 0f && swingTarget != null && swingTarget.Jabbing)
+        if (arm.side == 1f && swingTarget != null)
         {
-            // Jab = blend from the LIVE guard position out to the crosshair far point.
-            handPos = Vector3.Lerp(handPos, swingTarget.TargetPoint(), swingTarget.Extend01);
+            if (swingTarget.Jabbing)
+            {
+                // Jab = blend from the LIVE guard position out to the crosshair far point.
+                handPos = Vector3.Lerp(handPos, swingTarget.TargetPoint(), swingTarget.Extend01);
+
+            }
+            else if (swingTarget.Swinging)
+            {
+                handPos = Vector3.Lerp(handPos, swingTarget.TargetPoint(), swingTarget.Swing01);
+            }
         }
 
         // Aiming -> blend IK weight up to 1; releasing -> down to 0 (default arm pose).
@@ -157,11 +167,13 @@ public class PlayerHandHandler : MonoBehaviour
     void Update()
     {
         bool jabbing = input != null && input.BlockHeld;
-        Aiming = forceAim || input.AttackHeld || jabbing;
+        bool swinging = input != null && input.AttackHeld;
+
+        Aiming = forceAim || swinging || jabbing;
 
         // Guard sweep follows the mouse only OUTSIDE a jab - mid-jab, the mouse belongs to the
         // scrub and the guard must hold still under it.
-        if (Aiming && !jabbing)
+        if (Aiming && (!jabbing || !swinging))
         {
             _aim += input.Look * aimSensitivity;
             _aim = Vector2.ClampMagnitude(_aim, aimClamp);

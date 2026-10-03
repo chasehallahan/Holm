@@ -1,3 +1,4 @@
+using UnityEditor.UIElements;
 using UnityEngine;
 
 public class SwingTarget : MonoBehaviour
@@ -9,6 +10,7 @@ public class SwingTarget : MonoBehaviour
     [Header("Unarmed data")]
     [Tooltip("Full jab reach from the camera, meters.")]
     [SerializeField] private float reach = 0.8f;
+    [SerializeField] private CurveField curve = new(); 
 
     [Header("Jab scrub")]
     [Tooltip("Mouse Y pixels to scrub from guard to full reach.")]

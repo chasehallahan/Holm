@@ -1,4 +1,3 @@
-using UnityEditor.UIElements;
 using UnityEngine;
 
 public class SwingTarget : MonoBehaviour
@@ -10,7 +9,6 @@ public class SwingTarget : MonoBehaviour
     [Header("Unarmed data")]
     [Tooltip("Full jab reach from the camera, meters.")]
     [SerializeField] private float reach = 0.8f;
-    [SerializeField] private CurveField curve = new(); 
 
     [Header("Jab scrub")]
     [Tooltip("Mouse Y pixels to scrub from guard to full reach.")]
@@ -61,6 +59,7 @@ public class SwingTarget : MonoBehaviour
             if (push <= 0f)
                 _extend01 -= idleDecay * Time.deltaTime;          // spring home only when not pushing
             _extend01 = Mathf.Clamp01(_extend01);
+            _swing01 = Mathf.MoveTowards(_swing01, 0f, 4f * Time.deltaTime); // leftover hook can't block the jab branch
         }
         else if (Swinging)
         {
@@ -68,6 +67,7 @@ public class SwingTarget : MonoBehaviour
             _swing01 = Mathf.Clamp(_swing01 + push, -1f, 1f);
             if (Mathf.Approximately(push, 0f))
                 _swing01 = Mathf.MoveTowards(_swing01, 0f, idleDecay * Time.deltaTime); // spring back to guard only when idle
+            _extend01 = Mathf.MoveTowards(_extend01, 0f, 4f * Time.deltaTime); // leftover jab can't block the hook branch
         }
         else
         {

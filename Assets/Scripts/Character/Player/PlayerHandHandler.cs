@@ -1,5 +1,4 @@
 using RootMotion.FinalIK;
-using UnityEditor.UIElements;
 using UnityEngine;
 
 public class PlayerHandHandler : MonoBehaviour
@@ -12,7 +11,6 @@ public class PlayerHandHandler : MonoBehaviour
     [SerializeField] private Transform aimPivot;        //CameraRig/CameraPivot
     [SerializeField] private Transform handTarget;      //RightHandTarget
     [SerializeField] private Transform leftHandTarget;  //LeftHandTarget (auto-found from RightHandTarget's sibling if empty)
-    
 
     [Tooltip("Jab/slap scrub target. While jabbing, the primary hand follows it. Auto-found if empty.")]
     [SerializeField] private SwingTarget swingTarget;
@@ -38,6 +36,8 @@ public class PlayerHandHandler : MonoBehaviour
     [Header("Guard reach")]
     [Tooltip("How far from the shoulder the hands rest in guard.")]
     [SerializeField] private float baseReach = 0.30f;
+    [Tooltip("How far the hook bows out to the side at its widest (meters).")]
+    [SerializeField] private float hookBow = 0.45f;
 
     [Header("Debug")]
     [Tooltip("Force aiming ON so the hands stay raised - lets you position/tune the guard without holding LMB. Uncheck when done.")]
@@ -142,17 +142,24 @@ public class PlayerHandHandler : MonoBehaviour
 
         Vector3 handPos = arm.anchor.position + dir * baseReach;
 
-        if (arm.side == 1f && swingTarget != null)
+        if (arm.side > 0f && swingTarget != null)
         {
-            if (swingTarget.Jabbing)
+            if (swingTarget.Extend01 > 0f)
             {
                 // Jab = blend from the LIVE guard position out to the crosshair far point.
+                // Gated on the scrub VALUE so releasing RMB eases home instead of snapping.
                 handPos = Vector3.Lerp(handPos, swingTarget.TargetPoint(), swingTarget.Extend01);
-
             }
-            else if (swingTarget.Swinging)
+            else if (Mathf.Abs(swingTarget.Swing01) > 0.0001f)
             {
-                handPos = Vector3.Lerp(handPos, swingTarget.TargetPoint(), swingTarget.Swing01);
+                // Hook = quadratic bezier from the LIVE guard position, bowed to the swing's
+                // side, into the crosshair far point. |Swing01| = progress along it, sign =
+                // fronthand(+) vs backhand(-). Elevation rides TargetPoint's camera pitch.
+                float s = swingTarget.Swing01;
+                float p = Mathf.Abs(s);
+                Vector3 far = swingTarget.TargetPoint();
+                Vector3 mid = Vector3.Lerp(handPos, far, 0.5f) + aimPivot.right * (hookBow * Mathf.Sign(s));
+                handPos = Vector3.Lerp(Vector3.Lerp(handPos, mid, p), Vector3.Lerp(mid, far, p), p);
             }
         }
 
@@ -171,9 +178,9 @@ public class PlayerHandHandler : MonoBehaviour
 
         Aiming = forceAim || swinging || jabbing;
 
-        // Guard sweep follows the mouse only OUTSIDE a jab - mid-jab, the mouse belongs to the
-        // scrub and the guard must hold still under it.
-        if (Aiming && (!jabbing || !swinging))
+        // Guard sweep follows the mouse only OUTSIDE a jab or swing - in a mode, the mouse belongs
+        // to the scrub and the guard must hold still under it.
+        if (Aiming && !jabbing && !swinging)
         {
             _aim += input.Look * aimSensitivity;
             _aim = Vector2.ClampMagnitude(_aim, aimClamp);

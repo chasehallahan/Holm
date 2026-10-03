@@ -143,6 +143,7 @@ public class PlayerLooker : MonoBehaviour
         Vector2 look = input.Look;
         if (handHandler != null && handHandler.Aiming) look *= aimLookFactor;
         if (swingTarget != null && swingTarget.Jabbing) look.y = 0f; // jab owns the Y axis
+        if (swingTarget != null && swingTarget.Swinging) look.x = 0f; // hook owns the X axis
         float yawDelta = look.x * lookSensitivity;
         float pitchDelta = look.y * lookSensitivity;
 

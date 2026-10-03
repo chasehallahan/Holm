@@ -34,26 +34,38 @@ Common alternative: release-LMB-to-loose. Spec assumes the chord until overruled
   `0.04, 0.5, 0.04`), so the pose reads while there's no real asset. Cosmetic only;
   no script references it in slice 1.
 
-### Code
-- **`BowController.cs`** (new, on the Player root) — while `BowMode` is on, it owns BOTH
-  hand IK targets and their effector weights. Fields:
-  - refs: `PlayerInputReader input`, `Transform aimPivot`, `Transform cheekAnchor`,
-    `Transform rightHandTarget`, `Transform leftHandTarget` (same target transforms
-    FBBIK already binds; auto-found by name like PlayerHandHandler does)
-  - knobs: `bowHoldDistance = 0.45f` (left hand ahead of the camera),
-    `bowHoldRight = -0.06f` (riser sits slightly left of center),
-    `pixelsToFullDraw = 350f`
-  - state: `_draw01`, `public bool BowMode`, `public float Draw01 => _draw01`
-- **Geometry per IK frame (OnPreUpdate, same pattern as PlayerHandHandler):**
-  - grip (left hand) = `aimPivot.position + aimPivot.forward * bowHoldDistance + aimPivot.right * bowHoldRight`
-  - nock rest = `grip - aimPivot.forward * 0.05f`
-  - string hand (right) = `Lerp(nockRest, cheekAnchor.position, _draw01)`
-  - both effector positionWeights eased to 1 while BowMode (reuse the exp-ease idiom,
-    rate 8), so entering/leaving the mode blends instead of popping.
-- **`PlayerHandHandler` yield** — one check: if a `BowController` exists and
-  `BowMode` is true, `UpdateHands()` returns before driving anything. Bow and fists
-  never fight over the effectors.
-- **`PlayerLooker`** — one line, jab-pattern: while `BowMode && LMB held`, `look.y = 0`.
+### Code — weapon behavior lives IN the weapon
+
+- **`PlayerEquipment.cs`** (new, on the Player root) — owns the slot, knows nothing
+  about any specific weapon:
+  - refs it EXPOSES to the equipped weapon (public getters): `PlayerInputReader Input`,
+    `Transform AimPivot`, `Transform RightHandTarget`, `Transform LeftHandTarget`,
+    `Transform CheekAnchor` (player-anatomy anchors live player-side; weapons borrow them)
+  - state: `public Weapon Current { get; private set; }`
+  - `Equip(Weapon w)` / `Unequip()` — calls `w.OnEquip(this)` / `OnUnequip()`.
+  - Prototype input: `Interact` toggles equipping the scene bow (pickup slice replaces
+    this later).
+- **`Weapon.cs`** (new, abstract MonoBehaviour, lives on the weapon prefab):
+  - `public abstract void OnEquip(PlayerEquipment owner);`
+  - `public abstract void OnUnequip();`
+  - A weapon drives the hand IK targets itself while equipped (it subscribes to the
+    FBBIK OnPreUpdate the same way PlayerHandHandler does, or ticks in its own Update
+    and writes the target transforms — the weapon decides).
+- **`Bow.cs : Weapon`** (new, on the bow prefab) — ALL bow logic from this spec:
+  - knobs: `bowHoldDistance = 0.45f`, `bowHoldRight = -0.06f`, `pixelsToFullDraw = 350f`
+  - state: `_draw01`, `public float Draw01 => _draw01`
+  - per IK frame while equipped:
+    - grip (left hand) = `AimPivot.position + AimPivot.forward * bowHoldDistance + AimPivot.right * bowHoldRight`
+    - nock rest = `grip - AimPivot.forward * 0.05f`
+    - string hand (right) = `Lerp(nockRest, CheekAnchor.position, _draw01)`
+    - both effector positionWeights eased toward 1 (exp-ease, rate 8) so equip/unequip
+      blends instead of popping.
+- **`PlayerHandHandler` yield** — one check: `equipment.Current != null` →
+  `UpdateHands()` returns. Fists are the unarmed default; a weapon owns the hands while
+  equipped. (Future note, not now: fists themselves become a `Weapon`.)
+- **`PlayerLooker`** — jab-pattern line: while a bow is equipped and LMB held,
+  `look.y = 0`. v1 reads `equipment.Current is Bow` + input; a `Weapon.LocksPitch`
+  flag only when a second weapon needs it.
 
 ## Deliberately NOT in slice 1
 Arrow, string rendering, draw-strength stamina, left-arm fatigue sway, quiver,

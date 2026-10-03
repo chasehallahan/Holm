@@ -7,15 +7,19 @@ The equipped weapon defines what the mouse buttons mean. Fists: LMB slap / RMB j
 ### Draw state machine (user-designed 2026-10-03)
 
 ```
-IDLE    --LMB down-->          DRAWING   camera Y LOCKED; mouse pull-down scrubs draw01
+IDLE    --LMB down-->          DRAWING   camera Y LOCKED; scrub is BIDIRECTIONAL:
+                                         pull back = draw, slide forward = let down
 DRAWING --draw01 == 1-->       DRAWN     Y UNLOCKS: full pitch aim, draw pinned at 1
-DRAWING or DRAWN --LMB up-->   FIRE with velocity proportional to draw01, then IDLE
-DRAWING or DRAWN --RMB-->      CANCEL: draw eases home, no fire, then IDLE
+DRAWING --LMB up-->            FIRE ∝ draw01 (0 = letting go of a slack string, nothing)
+DRAWN   --LMB up-->            FIRE at full power
 ```
 
-- Partial release fires weak (velocity ∝ draw01) — no free panic-cancel on the fire button.
-- RMB is the cancel; it has no other job while a bow is equipped.
-- DRAWN latches when draw01 reaches 1; further mouse-down in DRAWN is camera aim, not draw.
+- Let-down IS the cancel: ease the string forward to 0 in DRAWING, release harmlessly.
+  No cancel button; RMB has no job while a bow is equipped (yet).
+- Partial release fires weak (velocity ∝ draw01).
+- DRAWN is the commit point (v1): once latched, Y belongs to aiming and release fires.
+  Let-down from full draw is deliberately absent — "anchor = committed." Revisit only
+  if playtests demand it (candidate: sharp forward-flick threshold to unlatch).
 
 ## Slices
 
@@ -30,7 +34,7 @@ DRAWING or DRAWN --RMB-->      CANCEL: draw eases home, no fire, then IDLE
 | Input | Effect |
 |---|---|
 | `Interact` (E) | Toggle bow mode on/off (prototype stand-in for equipping) |
-| LMB held (DRAWING) | Mouse pull-down scrubs `_draw01` 0→1 (350 px to full). No decay while held. Camera Y locked. |
+| LMB held (DRAWING) | Bidirectional scrub, camera Y locked: mouse DOWN draws (`draw01 += -Look.y / pixelsToFullDraw`, 350 px to full), mouse UP lets the string down. No decay; it holds where you leave it. |
 | `_draw01` hits 1 (DRAWN) | Camera Y unlocks — full pitch aim at full draw. Draw stays pinned. |
 | LMB released | FIRE, velocity ∝ `_draw01` (slice 1: debug log + draw resets; arrow is slice 2) |
 | RMB (while LMB held) | Cancel — draw eases home at 4/s, no fire |

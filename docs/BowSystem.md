@@ -1,11 +1,21 @@
 # Bow & Arrow — spec v1
 
 The equipped weapon defines what the mouse buttons mean. Fists: LMB slap / RMB jab.
-**Bow: LMB draws, RMB fires.** The left hand holds the riser (the "never attacks" rule
-is an unarmed rule); the right hand is the string hand.
+**Bow: hold LMB to draw, release LMB to loose.** The left hand holds the riser (the
+"never attacks" rule is an unarmed rule); the right hand is the string hand.
 
-Open question for partner sign-off: RMB-fire is a two-button chord (LMB stays held).
-Common alternative: release-LMB-to-loose. Spec assumes the chord until overruled.
+### Draw state machine (user-designed 2026-10-03)
+
+```
+IDLE    --LMB down-->          DRAWING   camera Y LOCKED; mouse pull-down scrubs draw01
+DRAWING --draw01 == 1-->       DRAWN     Y UNLOCKS: full pitch aim, draw pinned at 1
+DRAWING or DRAWN --LMB up-->   FIRE with velocity proportional to draw01, then IDLE
+DRAWING or DRAWN --RMB-->      CANCEL: draw eases home, no fire, then IDLE
+```
+
+- Partial release fires weak (velocity ∝ draw01) — no free panic-cancel on the fire button.
+- RMB is the cancel; it has no other job while a bow is equipped.
+- DRAWN latches when draw01 reaches 1; further mouse-down in DRAWN is camera aim, not draw.
 
 ## Slices
 
@@ -20,9 +30,11 @@ Common alternative: release-LMB-to-loose. Spec assumes the chord until overruled
 | Input | Effect |
 |---|---|
 | `Interact` (E) | Toggle bow mode on/off (prototype stand-in for equipping) |
-| LMB held + mouse PULL DOWN/BACK | `_draw01` scrubs 0→1 (350 px to full). No decay while held — it holds, like the hand scrubs. |
-| LMB released | Draw eases home at 4/s, no fire |
-| Camera | Pitch (Y) locked while LMB held — the pull belongs to the draw. Yaw damped as usual. |
+| LMB held (DRAWING) | Mouse pull-down scrubs `_draw01` 0→1 (350 px to full). No decay while held. Camera Y locked. |
+| `_draw01` hits 1 (DRAWN) | Camera Y unlocks — full pitch aim at full draw. Draw stays pinned. |
+| LMB released | FIRE, velocity ∝ `_draw01` (slice 1: debug log + draw resets; arrow is slice 2) |
+| RMB (while LMB held) | Cancel — draw eases home at 4/s, no fire |
+| Camera yaw | Damped as usual in every phase |
 
 ## Components
 

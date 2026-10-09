@@ -1,0 +1,157 @@
+# Unity CLI + com.unity.pipeline, scoped to this project.
+# Update the paths if this checkout or the Unity CLI moves.
+[mcp_servers.unity]
+command = "C:\\Users\\chase\\AppData\\Local\\Unity\\bin\\unity.exe"
+args = ["mcp", "--project-path", "C:\\Code\\Repos\\Personal\\Hólm"]
+default_tools_approval_mode = "prompt"
+
+# Mirrors the read-only Unity tools allowed in .claude/settings.json.
+[mcp_servers.unity.tools.audit_status]
+approval_mode = "approve"
+
+[mcp_servers.unity.tools.build_status]
+approval_mode = "approve"
+
+[mcp_servers.unity.tools.capture_game_view]
+approval_mode = "approve"
+
+[mcp_servers.unity.tools.capture_scene_view]
+approval_mode = "approve"
+
+[mcp_servers.unity.tools.console]
+approval_mode = "approve"
+
+[mcp_servers.unity.tools.console_status]
+approval_mode = "approve"
+
+[mcp_servers.unity.tools.editor_status]
+approval_mode = "approve"
+
+[mcp_servers.unity.tools.find_assets]
+approval_mode = "approve"
+
+[mcp_servers.unity.tools.find_gameobjects]
+approval_mode = "approve"
+
+[mcp_servers.unity.tools.get_animation_clip]
+approval_mode = "approve"
+
+[mcp_servers.unity.tools.get_animator_controller]
+approval_mode = "approve"
+
+[mcp_servers.unity.tools.get_audio_settings]
+approval_mode = "approve"
+
+[mcp_servers.unity.tools.get_authoring_root]
+approval_mode = "approve"
+
+[mcp_servers.unity.tools.get_build_settings]
+approval_mode = "approve"
+
+[mcp_servers.unity.tools.get_component_properties]
+approval_mode = "approve"
+
+[mcp_servers.unity.tools.get_graphics_settings]
+approval_mode = "approve"
+
+[mcp_servers.unity.tools.get_import_settings]
+approval_mode = "approve"
+
+[mcp_servers.unity.tools.get_input_settings]
+approval_mode = "approve"
+
+[mcp_servers.unity.tools.get_lighting_settings]
+approval_mode = "approve"
+
+[mcp_servers.unity.tools.get_material_properties]
+approval_mode = "approve"
+
+[mcp_servers.unity.tools.get_navmesh_settings]
+approval_mode = "approve"
+
+[mcp_servers.unity.tools.get_performance_stats]
+approval_mode = "approve"
+
+[mcp_servers.unity.tools.get_physics_settings]
+approval_mode = "approve"
+
+[mcp_servers.unity.tools.get_player_settings]
+approval_mode = "approve"
+
+[mcp_servers.unity.tools.get_quality_settings]
+approval_mode = "approve"
+
+[mcp_servers.unity.tools.get_runtime_pipeline_settings]
+approval_mode = "approve"
+
+[mcp_servers.unity.tools.get_scene_hierarchy]
+approval_mode = "approve"
+
+[mcp_servers.unity.tools.get_selection]
+approval_mode = "approve"
+
+[mcp_servers.unity.tools.get_serialized_fields]
+approval_mode = "approve"
+
+[mcp_servers.unity.tools.get_shader_properties]
+approval_mode = "approve"
+
+[mcp_servers.unity.tools.get_tags_layers]
+approval_mode = "approve"
+
+[mcp_servers.unity.tools.get_time_settings]
+approval_mode = "approve"
+
+[mcp_servers.unity.tools.get_timeline]
+approval_mode = "approve"
+
+[mcp_servers.unity.tools.lighting_bake_status]
+approval_mode = "approve"
+
+[mcp_servers.unity.tools.list_build_profiles]
+approval_mode = "approve"
+
+[mcp_servers.unity.tools.list_build_targets]
+approval_mode = "approve"
+
+[mcp_servers.unity.tools.list_open_scenes]
+approval_mode = "approve"
+
+[mcp_servers.unity.tools.list_shaders]
+approval_mode = "approve"
+
+[mcp_servers.unity.tools.list_tests]
+approval_mode = "approve"
+
+[mcp_servers.unity.tools.navmesh_bake_status]
+approval_mode = "approve"
+
+[mcp_servers.unity.tools.occlusion_bake_status]
+approval_mode = "approve"
+
+[mcp_servers.unity.tools.package_list]
+approval_mode = "approve"
+
+[mcp_servers.unity.tools.package_search]
+approval_mode = "approve"
+
+[mcp_servers.unity.tools.package_status]
+approval_mode = "approve"
+
+[mcp_servers.unity.tools.read_text_file]
+approval_mode = "approve"
+
+[mcp_servers.unity.tools.recompile_status]
+approval_mode = "approve"
+
+[mcp_servers.unity.tools.search]
+approval_mode = "approve"
+
+[mcp_servers.unity.tools.switch_build_target_status]
+approval_mode = "approve"
+
+[mcp_servers.unity.tools.test_status]
+approval_mode = "approve"
+
+[mcp_servers.unity.tools.wait_status]
+approval_mode = "approve"
